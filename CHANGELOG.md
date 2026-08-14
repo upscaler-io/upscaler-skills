@@ -4,19 +4,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-### Added
-
-- `scripts/build_editor_bundles.py`, a stdlib-only packager for the two supported agents that have no Agent Skills loader. Produces `dist/editors/cursor-rules.zip` (one agent-requested `.mdc` rule per skill, laid out to unzip straight into `.cursor/rules/`) and `dist/editors/gemini-context.zip` plus a standalone `GEMINI.md`. Flattening a skill breaks its `../../references/…` and skill-local links, so both bundles carry every linked file under `upscaler-skills-refs/` with the links rewritten, and the build re-reads each archive and fails on any link that does not resolve.
-- `.github/workflows/package.yml`. Builds the offline bundle, the ChatGPT per-skill zips, the Cursor rules, and the Gemini context file on every push, pull request, and manual dispatch, and publishes them to a GitHub Release on a `v*` tag. Splits build from publish so only the tag-gated release job holds a write-scoped token, and fails a tag whose version disagrees with `.codex-plugin/plugin.json`.
-
-### Fixed
-
-- The editor bundles rewrote links in a skill's `SKILL.md` but copied its support files in untouched, so a support file carrying its own link out to a repo-root shared reference would land in the bundle pointing at nothing. No skill in this repo was affected; the bug surfaced in `upscaler-adv-skills`. Support files are now rewritten as well, and the build's verification pass was widened from "every link this script wrote" to "every relative link in the archive", which is what should have caught it.
-- The bundles' reference root now derives from the plugin name (`upscaler-skills-refs/`) instead of being hard-coded, so a second Upscaler Cursor bundle unzipped into the same project cannot overwrite a shared reference that legitimately differs between the two.
-
-### Changed
-
-- README now documents Cursor and Gemini CLI as package downloads with stable `releases/latest/download/` URLs, replacing the hand-conversion instructions.
+Nothing yet.
 
 ## [1.0.0] - 2026-08-14
 
@@ -31,6 +19,8 @@ First release of `upscaler-skills` as a standalone repository.
   - `upscaler-run-record` — create record instances (`r_*`) from a record definition (`rd_*`) and drive their task flow end to end.
 - Shared references `references/upscaler-access.md` (MCP → CLI → setup connection priority), `references/form-filling.md` (form-filling core shared by `upscaler-write-entry` and `upscaler-run-record`), and `references/personas.md`.
 - Claude Code plugin (`upscaler-skills` in the `upscaler` marketplace), OpenAI Codex CLI plugin manifest, ChatGPT per-skill packager, and single-bundle packager.
+- `scripts/build_editor_bundles.py`, a stdlib-only packager for the two supported agents that have no Agent Skills loader. Produces `dist/editors/cursor-rules.zip` (one agent-requested `.mdc` rule per skill, laid out to unzip straight into `.cursor/rules/`) and `dist/editors/gemini-context.zip` plus a standalone `GEMINI.md`. Flattening a skill breaks its `../../references/…` and skill-local links, so both bundles carry every linked file under `upscaler-skills-refs/` with the links rewritten — in the SKILL.md body and inside bundled support files, which carry their own links. The reference root derives from the plugin name so a second Upscaler bundle unzipped into the same project cannot overwrite a shared reference that differs between them. The build then re-reads each archive and fails on any relative link that does not resolve.
+- `.github/workflows/package.yml`. Builds the offline bundle, the ChatGPT per-skill zips, the Cursor rules, and the Gemini context file on every push, pull request, and manual dispatch, and publishes them to a GitHub Release on a `v*` tag. Splits build from publish so only the tag-gated release job holds a write-scoped token, and fails a tag whose version disagrees with `.codex-plugin/plugin.json`. Release asset names are stable across versions, so `releases/latest/download/<asset>` keeps resolving.
 
 ### Changed
 
@@ -39,6 +29,7 @@ First release of `upscaler-skills` as a standalone repository.
 - `upscaler-write-entry`'s "When NOT to use" list now marks evidence-pack and Test-binding requests as out of scope rather than routing them elsewhere.
 - `references/personas.md` lists only the skills that ship in this repo.
 - `scripts/build_bundle.py` derives the bundle name from `.codex-plugin/plugin.json` instead of hard-coding it, so the zip name tracks the plugin name.
+- README documents Cursor and Gemini CLI as package downloads with stable `releases/latest/download/` URLs, replacing the hand-conversion instructions those two agents previously needed.
 
 ### Removed
 
