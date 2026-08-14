@@ -1,0 +1,151 @@
+name: package
+
+# Builds a distributable package for every agent that needs one, and publishes
+# them to a GitHub Release when a v* tag is pushed.
+#
+# Claude Code, OpenAI Codex, and `npx skills` install this repo straight from
+# git and need no artifact, so nothing here targets them beyond the offline
+# bundle. The agents that do need one are ChatGPT (per-skill upload), Cursor
+# (.cursor/rules/*.mdc), and Gemini CLI (a single GEMINI.md).
+#
+# Pushes and pull requests run the same build without publishing, so a
+# packaging break surfaces before release day rather than on it. Publishing is
+# a separate job so the build never holds a write-scoped token.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The version comes from a file a pull request can edit, so it is
+      # validated as strict semver before it reaches any shell or file name.
+      - name: Read plugin version
+        id: version
+        run: |
+          set -euo pipefail
+          version=$(python3 - <<'PY'
+          import json, re, sys
+          v = json.load(open(".codex-plugin/plugin.json"))["version"]
+          if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", v):
+              sys.exit(f"version {v!r} in .codex-plugin/plugin.json is not semver")
+          print(v)
+          PY
+          )
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Plugin version: $version"
+
+      # A tag that disagrees with the manifest ships packages whose internal
+      # version stamp contradicts the release they are attached to.
+      - name: Check tag matches plugin version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          MANIFEST_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "$MANIFEST_VERSION" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match .codex-plugin/plugin.json version ${MANIFEST_VERSION}"
+            echo "Bump the manifest or retag, then push again."
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} matches manifest version ${MANIFEST_VERSION}."
+
+      # build_bundle.py runs the same validation CI runs, and refuses to
+      # package a spec-invalid tree unless forced.
+      - name: Build offline bundle (Claude Code / Codex / manual)
+        run: python3 scripts/build_bundle.py
+
+      - name: Build ChatGPT per-skill packages
+        run: python3 scripts/build_chatgpt_skills.py
+
+      - name: Build Cursor and Gemini bundles
+        run: python3 scripts/build_editor_bundles.py
+
+      - name: Stage release assets
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp dist/upscaler-skills.zip release/
+          cp dist/editors/cursor-rules.zip release/
+          cp dist/editors/gemini-context.zip release/
+          cp dist/editors/GEMINI.md release/
+          # ChatGPT installs one skill at a time, so each stays its own asset.
+          for zip in dist/chatgpt/*.zip; do
+            cp "$zip" "release/chatgpt-$(basename "$zip")"
+          done
+          echo "Staged:"
+          ls -lh release/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: upscaler-skills-packages
+          path: release/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: upscaler-skills-packages
+          path: release
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'EOF'
+          Install packages for every supported agent.
+
+          | Agent | Asset | Install |
+          | --- | --- | --- |
+          | Claude Code | none needed | `/plugin marketplace add upscaler-io/upscaler-skills` then `/plugin install upscaler-skills@upscaler` |
+          | OpenAI Codex | none needed | `codex plugin marketplace add upscaler-io/upscaler-skills` then `codex plugin install upscaler-skills` |
+          | Any agent (skills.sh) | none needed | `npx skills add upscaler-io/upscaler-skills` |
+          | ChatGPT | `chatgpt-<skill>.zip` | Settings -> Skills -> "Upload from your computer", one zip per skill |
+          | Cursor | `cursor-rules.zip` | Unzip at your project root; files land in `.cursor/rules/` |
+          | Gemini CLI | `gemini-context.zip` | Unzip at your project root, or append `GEMINI.md` to an existing one |
+          | Offline / manual | `upscaler-skills.zip` | Unzip and copy `skills/<name>/` into your agent's skills directory |
+
+          Asset names are stable across releases, so these URLs always resolve to the newest build:
+
+          ```
+          https://github.com/upscaler-io/upscaler-skills/releases/latest/download/cursor-rules.zip
+          https://github.com/upscaler-io/upscaler-skills/releases/latest/download/gemini-context.zip
+          https://github.com/upscaler-io/upscaler-skills/releases/latest/download/upscaler-skills.zip
+          ```
+
+          See CHANGELOG.md for what changed.
+          EOF
+          gh release create "$GITHUB_REF_NAME" \
+            --title "upscaler-skills ${VERSION}" \
+            --notes-file notes.md \
+            release/*

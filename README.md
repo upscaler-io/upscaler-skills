@@ -9,8 +9,8 @@ Each skill is written as platform-neutral markdown (instructions + optional scri
 | Agent | Where skills are loaded from |
 | --- | --- |
 | [Claude Code](https://claude.ai/code) / [Claude.ai](https://claude.ai) | `~/.claude/skills/` or `.claude/skills/` |
-| [Cursor](https://cursor.com) | `.cursor/rules/*.mdc` |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `GEMINI.md` at the project or user level |
+| [Cursor](https://cursor.com) | `.cursor/rules/*.mdc`, from the packaged `cursor-rules.zip` |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `GEMINI.md` at the project or user level, from the packaged `gemini-context.zip` |
 | [OpenAI Codex CLI](https://github.com/openai/codex) | `AGENTS.md` at the project or user level, or `.agents/skills/` |
 | [ChatGPT](https://chatgpt.com) (Business, Enterprise, Edu) | Settings → Skills → "Upload from your computer", using the packaged zips from `scripts/build_chatgpt_skills.py` |
 | Any other agent | Paste `SKILL.md` content into whatever system-prompt / rules file the tool supports |
@@ -83,6 +83,24 @@ npx skills add upscaler-io/upscaler-skills --skill upscaler-author-asset
 
 `npx skills` discovers the plugin manifest under `.claude-plugin/` and pulls each skill from `skills/`.
 
+### Cursor and Gemini CLI (download a package)
+
+Neither agent has an Agent Skills loader, so each release ships a package with the skills reshaped into that agent's own format, with every reference link rewritten to resolve inside the package.
+
+```bash
+# Cursor: unzip at your project root, files land in .cursor/rules/
+curl -sSL -o cursor-rules.zip https://github.com/upscaler-io/upscaler-skills/releases/latest/download/cursor-rules.zip
+unzip -o cursor-rules.zip -d /path/to/your/project
+
+# Gemini CLI: unzip at your project root (GEMINI.md + the docs it links)
+curl -sSL -o gemini-context.zip https://github.com/upscaler-io/upscaler-skills/releases/latest/download/gemini-context.zip
+unzip -o gemini-context.zip -d /path/to/your/project
+```
+
+Each Cursor rule is *agent-requested*: Cursor matches its `description` against your prompt and loads it on demand, mirroring how an Agent Skills host picks a skill. For Gemini, `GEMINI.md` is also published as a standalone asset if you would rather append it to one you already have (`curl -sSL https://github.com/upscaler-io/upscaler-skills/releases/latest/download/GEMINI.md >> GEMINI.md`), though the reference docs it links then need to come from the zip or a clone.
+
+Asset names are stable across releases, so the URLs above always fetch the newest build.
+
 ### ChatGPT (upload packaged zips)
 
 ChatGPT (Business, Enterprise, Healthcare, and Edu plans) consumes the same Agent Skills format, but installs each skill as a self-contained folder, so the repo-root shared references have to be bundled into each package first. Build the packages, then upload them:
@@ -121,26 +139,29 @@ Restart Claude Code (or run `/reload`) and the skill will trigger automatically 
 </details>
 
 <details>
-<summary><strong>Cursor</strong> — convert to <code>.mdc</code></summary>
+<summary><strong>Cursor</strong> — build the rules yourself</summary>
 
-Cursor loads rules from `.cursor/rules/*.mdc`. Convert a skill by creating an `.mdc` file that points at (or inlines) the skill content:
+Prefer the released `cursor-rules.zip` above. To build it from a clone instead:
 
 ```bash
-mkdir -p /path/to/your/project/.cursor/rules
-cp skills/upscaler-author-asset/SKILL.md /path/to/your/project/.cursor/rules/upscaler-author-asset.mdc
+python3 scripts/build_editor_bundles.py cursor
+unzip -o dist/editors/cursor-rules.zip -d /path/to/your/project
 ```
 
-Edit the top of the copied file to use Cursor's frontmatter keys (e.g. `description`, `globs`, `alwaysApply: false`) — see [Cursor rules docs](https://docs.cursor.com/context/rules).
+The packager converts each skill's frontmatter to Cursor's keys (`description`, `globs`, `alwaysApply`) and rewrites every reference link so it resolves inside `.cursor/rules/`. See [Cursor rules docs](https://docs.cursor.com/context/rules).
 </details>
 
 <details>
-<summary><strong>Gemini CLI</strong> — append to <code>GEMINI.md</code></summary>
+<summary><strong>Gemini CLI</strong> — build the context file yourself</summary>
+
+Prefer the released `gemini-context.zip` above. To build it from a clone instead:
 
 ```bash
-cat skills/upscaler-author-asset/SKILL.md >> /path/to/your/project/GEMINI.md
+python3 scripts/build_editor_bundles.py gemini
+unzip -o dist/editors/gemini-context.zip -d /path/to/your/project
 ```
 
-For a user-level install, append to `~/.gemini/GEMINI.md` instead. See [Gemini CLI docs](https://github.com/google-gemini/gemini-cli).
+For a user-level install, append `dist/editors/GEMINI.md` to `~/.gemini/GEMINI.md`. See [Gemini CLI docs](https://github.com/google-gemini/gemini-cli).
 </details>
 
 <details>

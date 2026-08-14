@@ -77,6 +77,7 @@ ln -s "$(pwd)/skills/my-skill" ~/.claude/skills/my-skill
 ## Pull request checklist
 
 - [ ] `python3 scripts/validate_skills.py` passes.
+- [ ] All packagers still build: `python3 scripts/build_bundle.py`, `python3 scripts/build_chatgpt_skills.py`, `python3 scripts/build_editor_bundles.py`.
 - [ ] Skill added to the table in `README.md`, the list in `AGENTS.md`, and the index in `llms.txt`.
 - [ ] Any schema or format change reflected in `docs/skill-template/`, the validator, and `CLAUDE.md`.
 - [ ] `CHANGELOG.md` updated under **Unreleased**.
@@ -85,11 +86,22 @@ ln -s "$(pwd)/skills/my-skill" ~/.claude/skills/my-skill
 
 The repo ships as a Claude Code plugin (`upscaler-skills` in the `upscaler` marketplace) and as a Vercel `npx skills` source. The Claude and marketplace manifests omit `version`, so the **git commit SHA is the version** — every merge to `main` is a release. `.codex-plugin/plugin.json` carries semver for Codex, which requires it; bump that on a release.
 
-For pinned releases:
+### Cutting a release
 
-1. Bump `"version"` in `.codex-plugin/plugin.json`.
-2. Tag the commit (`git tag v1.0.0 && git push --tags`).
-3. Document the pinned install: `/plugin marketplace add upscaler-io/upscaler-skills@v1.0.0`.
+`.github/workflows/package.yml` builds every distributable package on each push and pull request, and publishes them to a GitHub Release when a `v*` tag arrives. To release:
+
+1. Bump `"version"` in `.codex-plugin/plugin.json` and land it on `main`.
+2. Tag the commit and push the tag:
+
+   ```bash
+   git tag v1.1.0 && git push --tags
+   ```
+
+3. The workflow verifies the tag matches the manifest version, builds the offline bundle, the ChatGPT per-skill zips, the Cursor rules, and the Gemini context file, then attaches them all to the release.
+
+A tag that disagrees with the manifest fails the build instead of publishing a mislabelled release, so bump first and tag second. Release asset names stay stable across versions, which is what keeps `releases/latest/download/<asset>` working for users, so do not add a version suffix to them.
+
+Pinned plugin install: `/plugin marketplace add upscaler-io/upscaler-skills@v1.1.0`.
 
 ## Code of conduct
 
