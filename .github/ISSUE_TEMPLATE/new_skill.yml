@@ -1,0 +1,41 @@
+name: Propose a new skill
+description: Suggest a new skill to add to this library.
+title: "[new-skill] "
+labels: ["new-skill"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Skill name (kebab-case)
+      placeholder: upscaler-risk-register
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description (this becomes the SKILL.md frontmatter description)
+      description: List the concrete situations where Claude should load this skill.
+    validations:
+      required: true
+  - type: textarea
+    id: triggers
+    attributes:
+      label: Example user prompts that should trigger this skill
+      placeholder: |
+        - "show me all open risks"
+        - "add a risk register entry for vendor X"
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: External dependencies
+      description: Does this skill require a CLI, API key, or MCP server? List anything users must install.
+    validations:
+      required: false
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Are you willing to contribute this skill?
+      options:
+        - label: I plan to open a PR for this skill.

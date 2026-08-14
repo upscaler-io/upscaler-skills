@@ -1,0 +1,39 @@
+# Upscaler Skills
+
+> Open-source agent skills for the Upscaler enterprise content management platform. Skills are portable across Claude Code, Cursor, Gemini CLI, OpenAI Codex CLI, and any tool that supports the Agent Skills format. The library is hub-and-spoke: `upscaler-ask` is the compliance-manager Q&A entry point and routes to the specialist skills below. Every skill prefers the Upscaler MCP server and falls back to the `upscaler` CLI; if neither is set up, the skill prints install instructions and stops. This is the core library; advanced workflows ship separately as upscaler-adv-skills.
+
+## Skills
+
+- [upscaler-ask](https://github.com/upscaler-io/upscaler-skills/blob/main/skills/upscaler-ask/SKILL.md): Compliance-manager Q&A entry point. Answers questions about controls, evidence, risks, policies, and training in concise prose with citations. Framework-agnostic (ISO 27001, SOC 2, NIST CSF, etc.). Routes to the specialist skills when the user's intent is a workflow.
+- [upscaler-author-asset](https://github.com/upscaler-io/upscaler-skills/blob/main/skills/upscaler-author-asset/SKILL.md): Author Upscaler asset definitions (policies, procedures, registers, records, courses) that pass the platform's strict validators, and apply read-modify-write updates to existing documents.
+- [upscaler-write-entry](https://github.com/upscaler-io/upscaler-skills/blob/main/skills/upscaler-write-entry/SKILL.md): Create or update an entry (row, `i_*`) inside an existing register (`rg_*`). Resolves fields, generates sample values, uploads top-level and nested form-table files, and uses propose-then-confirm before every write.
+- [upscaler-run-record](https://github.com/upscaler-io/upscaler-skills/blob/main/skills/upscaler-run-record/SKILL.md): Create a record instance (`r_*`) from a record definition (`rd_*`) and drive its whole task flow: per-task form filling with values derived from the parent asset and its referenced assets, task completion in workflow order, and verification. Shares its form-filling core with upscaler-write-entry.
+
+## Shared references
+
+- [upscaler-access.md](https://github.com/upscaler-io/upscaler-skills/blob/main/references/upscaler-access.md): MCP → CLI → setup connection priority every skill follows, with the tool/command mapping table and the verbatim setup message printed when neither tier is available. Kept byte-identical with the copy in upscaler-adv-skills.
+- [form-filling.md](https://github.com/upscaler-io/upscaler-skills/blob/main/references/form-filling.md): The shared form-filling core used by upscaler-write-entry and upscaler-run-record: schema-first key resolution, value shapes per field type, deriving values from the parent asset and its referenced assets, and read-back tolerances.
+- [personas.md](https://github.com/upscaler-io/upscaler-skills/blob/main/references/personas.md): The three target personas (compliance manager, engineer/PM, author) and how each skill calibrates output.
+
+## Related repositories
+
+- [upscaler-adv-skills](https://github.com/upscaler-io/upscaler-adv-skills): advanced workflow skills that install alongside this library — upscaler-prep-evidence (control evidence packs), upscaler-review-design (ISO 27001 design-doc gap review), upscaler-setup-framework (installed-framework setup and Test curation), upscaler-prep-management-review (clause 9.3 input packs), upscaler-report-status (audience-calibrated status reports), and upscaler-adv-routing (restores hub routing from upscaler-ask to those five).
+
+## Installation
+
+- Claude Code plugin: `/plugin marketplace add upscaler-io/upscaler-skills` then `/plugin install upscaler-skills@upscaler`. Skills appear under the `/upscaler-skills:` namespace and auto-update with each commit on `main`.
+- OpenAI Codex CLI plugin: `codex plugin marketplace add upscaler-io/upscaler-skills` then `codex plugin install upscaler-skills`.
+- Any agent (Vercel skills.sh): `npx skills add upscaler-io/upscaler-skills` installs the whole bundle. Use `--skill upscaler-ask`, `--skill upscaler-author-asset`, `--skill upscaler-write-entry`, or `--skill upscaler-run-record` to install just one. Works with Claude Code, Cursor, Codex, Gemini CLI, Cline, OpenCode, and 12+ other agents.
+- ChatGPT (Business/Enterprise/Healthcare/Edu): run `python3 scripts/build_chatgpt_skills.py` to produce self-contained per-skill zips in `dist/chatgpt/` (shared references inlined under `references/shared/`), then upload each zip via Settings → Skills → "Upload from your computer". Connect the Upscaler connector for live data; uploads do not auto-update.
+- Manual: `cp -r skills/<name> ~/.claude/skills/` (or paste `SKILL.md` into the agent's rules file). See [README installation guide](https://github.com/upscaler-io/upscaler-skills/blob/main/README.md#installation).
+
+## APIs
+
+- [upscaler-cli on PyPI](https://pypi.org/project/upscaler-cli/): `pip install upscaler-cli` then `upscaler login`. CLI is the fallback tier when no MCP server is present.
+- [MCP server](https://upscaler.io): hosted tenants can drive Upscaler via the Model Context Protocol (OAuth 2.0 required). Preferred tier for every skill; tools are namespaced as `upscaler_*` (e.g. `upscaler_search_documents`, `upscaler_get_asset_hierarchy`, `upscaler_list`).
+
+## Documentation
+
+- [Agent Skills specification](https://agentskills.io/specification): format this repo follows.
+- [Installation guides](https://github.com/upscaler-io/upscaler-skills/blob/main/README.md): per-agent install steps.
+- [Contributing](https://github.com/upscaler-io/upscaler-skills/blob/main/CONTRIBUTING.md): how to propose a new skill.

@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest an improvement to an existing skill.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      placeholder: upscaler-asset-definition
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

@@ -1,0 +1,117 @@
+[
+  {
+    "query": "Is ISO 27001 A.5.15 covered in our ISMS? Need to know for the surveillance audit next Tuesday.",
+    "should_trigger": true,
+    "category": "control_status"
+  },
+  {
+    "query": "What's our SOC 2 readiness right now — am I anywhere near ready?",
+    "should_trigger": true,
+    "category": "framework_status"
+  },
+  {
+    "query": "Which Annex A controls in our ISMS have no implementing policy mapped to them?",
+    "should_trigger": true,
+    "category": "control_gap"
+  },
+  {
+    "query": "show me the audit findings from the Q3 2025 internal audit, particularly the major nonconformities",
+    "should_trigger": true,
+    "category": "evidence_lookup"
+  },
+  {
+    "query": "Which evidence is expiring or already stale before the Feb surveillance audit?",
+    "should_trigger": true,
+    "category": "evidence_stale"
+  },
+  {
+    "query": "Top 5 open risks with no risk owner assigned.",
+    "should_trigger": true,
+    "category": "risk_insight"
+  },
+  {
+    "query": "Which risks are linked to A.8.3 access control?",
+    "should_trigger": true,
+    "category": "risk_insight"
+  },
+  {
+    "query": "find our incident response procedure, i need the latest version",
+    "should_trigger": true,
+    "category": "doc_lookup"
+  },
+  {
+    "query": "who owns the access control policy in our ISMS?",
+    "should_trigger": true,
+    "category": "doc_owner"
+  },
+  {
+    "query": "which training is overdue for the engineering team this quarter?",
+    "should_trigger": true,
+    "category": "training_lookup"
+  },
+  {
+    "query": "how many ambiguous bindings does our installed ISO 27001 have?",
+    "should_trigger": true,
+    "category": "binding_lookup"
+  },
+  {
+    "query": "Show me the tests bound to A.5.15.",
+    "should_trigger": true,
+    "category": "binding_lookup"
+  },
+  {
+    "query": "Group the processes by their Priority field and show the count for each group.",
+    "should_trigger": true,
+    "category": "list_and_count"
+  },
+  {
+    "query": "how many suppliers do we have, broken down by criticality?",
+    "should_trigger": true,
+    "category": "list_and_count"
+  },
+  {
+    "query": "what's the distribution of risks by rating in our QMS register?",
+    "should_trigger": true,
+    "category": "list_and_count_qms"
+  },
+  {
+    "query": "Review this PRD for ISO 27001 compliance gaps: docs/prd-new-auth.md",
+    "should_trigger": false,
+    "category": "negative_review_design"
+  },
+  {
+    "query": "Draft a new acceptable use policy for our org, modelled on the existing ISMS style.",
+    "should_trigger": false,
+    "category": "negative_author_asset"
+  },
+  {
+    "query": "Build me a full evidence pack for A.5.15 by Friday with all the supporting docs.",
+    "should_trigger": false,
+    "category": "negative_prep_evidence"
+  },
+  {
+    "query": "Bind A.5.15 to our quarterly access review record in the installed ISO 27001.",
+    "should_trigger": false,
+    "category": "negative_setup_framework"
+  },
+  {
+    "query": "Check our MongoDB Atlas backups for yesterday and complete the backup review record.",
+    "should_trigger": false,
+    "category": "negative_backup_check"
+  },
+  {
+    "query": "Toggle the new-auth-flow LaunchDarkly flag on for org o-66uv5xgtthla.",
+    "should_trigger": false,
+    "category": "negative_feature_flag"
+  },
+  {
+    "query": "Show me the open MRs on the gitlab upscaler/upscaler project that touch the auth module.",
+    "should_trigger": false,
+    "category": "negative_not_upscaler"
+  },
+  {
+    "query": "Mine our Statement of Applicability for missing tenant-local Tests on NIS2.",
+    "should_trigger": false,
+    "category": "negative_setup_framework_2"
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "name": "upscaler",
+  "owner": {
+    "name": "Upscaler",
+    "email": "support@upscaler.io"
+  },
+  "metadata": {
+    "description": "Official Upscaler agent skills: compliance-manager Q&A, asset authoring, register entries, and record completion."
+  },
+  "plugins": [
+    {
+      "name": "upscaler-skills",
+      "source": "./",
+      "description": "Core bundle of Upscaler agent skills: a compliance-manager Q&A entry point that routes to asset-definition authoring, register-entry writes, and record-instance completion. Prefers the Upscaler MCP server; falls back to the upscaler CLI.",
+      "homepage": "https://github.com/upscaler-io/upscaler-skills",
+      "repository": "https://github.com/upscaler-io/upscaler-skills",
+      "license": "MIT",
+      "keywords": ["upscaler", "compliance", "iso27001", "isms", "mcp", "qa", "asset-definition", "register"],
+      "category": "knowledge-work"
+    }
+  ]
+}

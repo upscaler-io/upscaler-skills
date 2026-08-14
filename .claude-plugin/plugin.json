@@ -1,0 +1,11 @@
+{
+  "name": "upscaler-skills",
+  "description": "Core Upscaler agent skills: compliance-manager Q&A, asset-definition authoring, register-entry writes, and record completion. Prefers the Upscaler MCP server; falls back to the upscaler CLI.",
+  "author": {
+    "name": "Upscaler",
+    "email": "support@upscaler.io"
+  },
+  "homepage": "https://github.com/upscaler-io/upscaler-skills",
+  "repository": "https://github.com/upscaler-io/upscaler-skills",
+  "license": "MIT"
+}

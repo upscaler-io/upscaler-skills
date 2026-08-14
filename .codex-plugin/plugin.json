@@ -1,0 +1,23 @@
+{
+  "name": "upscaler-skills",
+  "version": "1.0.0",
+  "description": "Core Upscaler agent skills: compliance-manager Q&A, asset-definition authoring, register-entry writes, and record completion. Prefers the Upscaler MCP server; falls back to the upscaler CLI.",
+  "author": {
+    "name": "Upscaler",
+    "email": "support@upscaler.io"
+  },
+  "homepage": "https://github.com/upscaler-io/upscaler-skills",
+  "repository": "https://github.com/upscaler-io/upscaler-skills",
+  "license": "MIT",
+  "keywords": ["upscaler", "compliance", "iso27001", "isms", "mcp", "qa", "asset-definition", "register"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Upscaler Skills",
+    "shortDescription": "Ask Upscaler anything, author assets, write register entries, complete records.",
+    "longDescription": "The core Upscaler agent-skill library, organised around a compliance-manager Q&A entry point (upscaler-ask) that routes to three workflow spokes: authoring of valid policy/procedure/register/record/course definitions (upscaler-author-asset), register-entry creation and updates (upscaler-write-entry), and record-instance creation plus task completion (upscaler-run-record). Skills prefer the Upscaler MCP server and fall back to the upscaler CLI. Advanced workflows - evidence packs, design-doc gap reviews, installed-framework setup, management-review packs, and status reports - ship separately as upscaler-adv-skills.",
+    "developerName": "Upscaler",
+    "category": "Productivity",
+    "capabilities": ["skills"],
+    "websiteURL": "https://upscaler.io"
+  }
+}

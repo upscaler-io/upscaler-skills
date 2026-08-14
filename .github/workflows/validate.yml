@@ -1,0 +1,36 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install upstream validator
+        run: pip install skills-ref
+
+      - name: Validate against local rules
+        run: python3 scripts/validate_skills.py
+
+      - name: Validate against agentskills.io specification
+        run: |
+          set -e
+          for skill in skills/*/; do
+            echo "::group::${skill}"
+            agentskills validate "$skill"
+            echo "::endgroup::"
+          done
