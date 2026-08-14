@@ -18,12 +18,12 @@ First release of `upscaler-skills` as a standalone repository.
 
 ### Changed
 
-- **Repository split.** This library was previously distributed as part of `upscaler-io/agent-skills` under the plugin name `upscaler-platform`. Five advanced workflow skills moved to [`upscaler-adv-skills`](https://github.com/upscaler-io/upscaler-adv-skills): `upscaler-prep-evidence`, `upscaler-review-design`, `upscaler-setup-framework`, `upscaler-prep-management-review`, and `upscaler-report-status`. Existing installs of `upscaler-platform` should be replaced with `upscaler-skills` (plus `upscaler-adv-skills` for the advanced set).
-- `upscaler-ask` no longer routes unconditionally to the advanced spokes. Its new "Workflows outside this library" section treats them as optional: route if the skill is loaded, otherwise answer the read-only part of the request and stop. Installing `upscaler-adv-skills` restores full routing through that repo's `upscaler-adv-routing` overlay skill.
-- `upscaler-write-entry`'s "When NOT to use" list now names the advanced skills as separately shipped rather than as installed siblings.
-- `references/personas.md` lists only the skills that ship in this repo, and points at `upscaler-adv-skills` for the rest.
+- **Repository split.** This library was previously distributed as part of `upscaler-io/agent-skills` under the plugin name `upscaler-platform`, alongside five workflow skills that are not part of this release. Existing installs of `upscaler-platform` should be replaced with `upscaler-skills`.
+- `upscaler-ask` no longer routes unconditionally to workflows this library does not cover. Its new "Workflows outside this library" section treats them as optional: if a skill covering the workflow is loaded in the session, route to it; otherwise answer the read-only part of the request and stop.
+- `upscaler-write-entry`'s "When NOT to use" list now marks evidence-pack and Test-binding requests as out of scope rather than routing them elsewhere.
+- `references/personas.md` lists only the skills that ship in this repo.
 - `scripts/build_bundle.py` derives the bundle name from `.codex-plugin/plugin.json` instead of hard-coding it, so the zip name tracks the plugin name.
 
 ### Removed
 
-- `references/posture-collection.md` — moved to `upscaler-adv-skills`, where its only two consumers now live.
+- `references/posture-collection.md`, whose only consumers are not part of this release.

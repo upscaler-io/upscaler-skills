@@ -13,7 +13,7 @@ This skill is **read-only on its own**. When the user asks for an artifact (evid
 
 Write-capable spokes: `upscaler-author-asset` (drafts and revises asset definitions), `upscaler-write-entry` (creates/updates register entries `i_*`), and `upscaler-run-record` (creates record instances `r_*` and completes their tasks, including Supplier Agreement / Monitoring Activity review records). Write-capable spokes always use propose-then-confirm UX, never silent mutation.
 
-Five further workflows — evidence packs, design-doc gap reviews, installed-framework setup, management-review packs, and status reports — ship separately in `upscaler-adv-skills` and are not assumed to be present. See [Workflows outside this library](#workflows-outside-this-library).
+Some workflow requests fall outside this library's scope. See [Workflows outside this library](#workflows-outside-this-library).
 
 ## Platform connection (MCP → CLI → setup)
 
@@ -171,20 +171,20 @@ Then load the specialist skill's instructions and follow them. Do not paraphrase
 
 ### Workflows outside this library
 
-Five workflows ship separately in `upscaler-adv-skills`. Treat them as optional: they may or may not be loaded in the session.
+These five workflow shapes are out of scope for this library. A separate skill covering one of them may or may not be loaded in the session, so treat each as optional.
 
-| User intent (paraphrased)                                              | Skill (separate install)         |
-| ---------------------------------------------------------------------- | -------------------------------- |
-| "Build / assemble an evidence pack / full narrative / audit pack"       | `upscaler-prep-evidence`         |
-| "Review / gap-check this PRD / ADR / spec / design doc"                 | `upscaler-review-design`         |
-| "Set up / configure a framework, bind / add / disable Tests, re-evaluate" | `upscaler-setup-framework`     |
-| "Prepare the management review / clause 9.3 input pack"                 | `upscaler-prep-management-review` |
-| "Status report / board summary / posture update for <audience>"         | `upscaler-report-status`         |
+| User intent (paraphrased)                                                | Out-of-scope workflow  |
+| ------------------------------------------------------------------------ | ---------------------- |
+| "Build / assemble an evidence pack / full narrative / audit pack"         | Evidence assembly      |
+| "Review / gap-check this PRD / ADR / spec / design doc"                   | Design-doc gap review  |
+| "Set up / configure a framework, bind / add / disable Tests, re-evaluate" | Framework setup        |
+| "Prepare the management review / clause 9.3 input pack"                   | Management review      |
+| "Status report / board summary / posture update for <audience>"           | Status reporting       |
 
 Two cases:
 
-1. **The skill is available in this session.** Route to it exactly as to any spoke above, using the same handoff phrasing.
-2. **It is not available.** Do not improvise the workflow and do not half-build the artifact. Answer whichever part of the request is a plain read-only question using the recipes above, then state in one sentence that the full workflow ships in `upscaler-adv-skills` and stop.
+1. **A skill covering it is loaded in this session.** Route to it exactly as to any spoke above, using the same handoff phrasing.
+2. **No such skill is loaded.** Do not improvise the workflow and do not half-build the artifact. Answer whichever part of the request is a plain read-only question using the recipes above, then say in one sentence that producing the full artifact is outside this skill's scope, and stop.
 
 Never fabricate the output of a skill that is not present, and never claim a skill is unavailable without checking the loaded skills first.
 

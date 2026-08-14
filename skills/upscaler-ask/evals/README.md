@@ -33,7 +33,7 @@ cd "$SC" && python3 -m scripts.run_eval \
 
 **What this is measuring.** `run_eval.py` writes the skill's current `description:` text into a fresh slash-command alias `upscaler-ask-skill-<uuid>` in `.claude/commands/`, then runs each query and checks whether Claude invokes the *alias* via the `Skill` tool. It is the right tool for iterating on the description in isolation — it removes confounds from skill body content, examples, and so on.
 
-**The catch in our setup.** The real `upscaler-ask` skill is already installed alongside many specialist Upscaler skills (`upscaler-prep-evidence`, `upscaler-author-asset`, `compliance-assistant`, etc.). For any well-shaped Upscaler question, Claude will usually pick the *real* installed skill rather than the test alias — which `run_eval.py` records as a FAIL even though the routing behavior is correct.
+**The catch in our setup.** The real `upscaler-ask` skill is already installed alongside many specialist Upscaler skills (`upscaler-author-asset`, `compliance-assistant`, etc.). For any well-shaped Upscaler question, Claude will usually pick the *real* installed skill rather than the test alias — which `run_eval.py` records as a FAIL even though the routing behavior is correct.
 
 Concretely, the first baseline run on this eval set scored 8/23 (all 15 positives failed, all 8 negatives passed). Re-running `claude -p` interactively on the same prompts shows the real `upscaler-ask` triggers cleanly — confirming the FAILs are a measurement artifact, not a routing problem.
 

@@ -6,7 +6,7 @@ Thanks for your interest in extending the Upscaler Skills library. This guide co
 
 - Open a [new-skill issue](.github/ISSUE_TEMPLATE/new_skill.yml) describing the skill. This lets maintainers weigh in on scope and avoid duplication.
 - Small fixes (typos, clearer triggers, corrected examples) can skip the issue step and go straight to a PR.
-- **Check which repo the skill belongs in.** This repo holds the core set: Q&A, asset authoring, register entries, record completion. Advanced workflows — evidence packs, design-doc gap reviews, framework setup, management-review packs, status reports — belong in [`upscaler-adv-skills`](https://github.com/upscaler-io/upscaler-adv-skills).
+- **Check the skill is in scope.** This repo holds Q&A, asset authoring, register entries, and record completion. Evidence assembly, design-doc gap review, framework setup, management review, and status reporting are deliberately out of scope.
 
 ## Skill structure
 
@@ -72,15 +72,7 @@ ln -s "$(pwd)/skills/my-skill" ~/.claude/skills/my-skill
 - **Prefer doing over narrating.** Give Claude the command or API call to run, not paragraphs of background.
 - **Scope tightly.** One skill = one coherent capability. If it tries to do everything, triggers become noisy.
 - **Test the trigger.** Try 3–5 real user phrasings in Claude Code and confirm the skill is picked.
-- **Never assume an advanced skill is installed.** If your skill's prose points at `upscaler-prep-evidence` or another skill from `upscaler-adv-skills`, phrase it as optional and give the degraded behaviour.
-
-## Shared references
-
-`references/upscaler-access.md` is duplicated byte-for-byte in `upscaler-adv-skills` so both repos install standalone. If your PR touches it, open the matching PR there and note the pair in both descriptions. Confirm with:
-
-```bash
-diff references/upscaler-access.md ../upscaler-adv-skills/references/upscaler-access.md
-```
+- **Never assume a skill outside this library is installed.** If your skill's prose points at one, phrase it as optional and give the degraded behaviour.
 
 ## Pull request checklist
 
@@ -88,7 +80,6 @@ diff references/upscaler-access.md ../upscaler-adv-skills/references/upscaler-ac
 - [ ] Skill added to the table in `README.md`, the list in `AGENTS.md`, and the index in `llms.txt`.
 - [ ] Any schema or format change reflected in `docs/skill-template/`, the validator, and `CLAUDE.md`.
 - [ ] `CHANGELOG.md` updated under **Unreleased**.
-- [ ] If `references/upscaler-access.md` changed, the mirrored change is open in `upscaler-adv-skills`.
 
 ## Releasing & distribution
 

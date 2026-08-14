@@ -38,7 +38,7 @@ Record the chosen tier once per session and stay on it.
 - "Create a new register called X." → `upscaler-author-asset` (you are authoring an asset definition, not a row).
 - "Draft a new record definition / incident record template." → `upscaler-author-asset` (authoring an `rd_*`, not writing an `i_*`).
 - "How many open risks do we have?" → `upscaler-ask` (read-only query).
-- "Build me an evidence pack for A.5.15." or "Bind a Test on requirement A.5.15 to this record definition (`rd_*`)." → neither is a register write; both ship in `upscaler-adv-skills` (`upscaler-prep-evidence`, `upscaler-setup-framework`). Say so and stop rather than improvising.
+- "Build me an evidence pack for A.5.15." or "Bind a Test on requirement A.5.15 to this record definition (`rd_*`)." → neither is a register write, and neither is covered by this library. Say so and stop rather than improvising.
 
 ## The contract you are writing against
 

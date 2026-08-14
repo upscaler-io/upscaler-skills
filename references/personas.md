@@ -2,7 +2,7 @@
 
 Shared reference describing the three user personas the Upscaler agent skills target. Used by each skill to calibrate tone, default output format, and which workflows to surface.
 
-The "skills they invoke" lists below cover the **core** library only (`upscaler-skills`). Advanced workflows — evidence packs, design-doc gap reviews, framework setup, management-review packs, status reports — ship separately in `upscaler-adv-skills`; the persona model is the same there.
+The "skills they invoke" lists below cover the skills in this library. Several workflows these personas need (evidence assembly, design-doc gap review, framework setup, management review, status reporting) are out of scope here.
 
 ## Compliance manager / ISMS owner (primary)
 
@@ -20,7 +20,7 @@ Builds product features. Touches compliance when shipping something that interac
 - **Asks:** "Does this PRD have ISO 27001 gaps?", "Which policy applies to this API?", "Do we need a DPIA for this change?"
 - **Wants:** fast yes / no / where-to-look answers; advisory gap reviews of design docs; pointers into the ISMS rather than full reproductions.
 - **Output preference:** brief, decision-oriented. Findings with severity + remediation, not narrative.
-- **Skills they invoke:** `upscaler-ask` (for lookups). Their main workflow, advisory gap review of a design doc, is `upscaler-review-design` in `upscaler-adv-skills` — this library answers their lookup questions but does not perform the review.
+- **Skills they invoke:** `upscaler-ask` (for lookups). Their main workflow, advisory gap review of a design doc, is out of scope for this library, which answers their lookup questions but does not perform the review.
 
 ## Author / policy writer
 
@@ -35,4 +35,4 @@ Creates and edits assets in Upscaler: policies, procedures, registers, records, 
 
 - All three personas land first on `upscaler-ask` when the request is exploratory. The Q&A skill routes to the specialist skills when intent is clear.
 - Compliance manager is the primary persona for the library's surface area — when a tradeoff arises between brevity for the manager vs. depth for the auditor, favor the manager.
-- Auditor / external-reviewer is **not** a target persona for this library; auditor-ready artifacts are produced by the advanced skills for the compliance manager to hand off.
+- Auditor / external-reviewer is **not** a target persona for this library; producing auditor-ready artifacts is out of scope here; this library serves the compliance manager who would hand them off.

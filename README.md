@@ -2,8 +2,6 @@
 
 A public collection of portable AI-agent skills for interacting with the [Upscaler](https://app.upscaler.app) platform. Use them to let your coding agent search Upscaler documents, author asset definitions, write register entries, complete records, and answer compliance questions directly from the terminal or IDE.
 
-This is the **core** library. Advanced workflows (evidence packs, design-doc gap reviews, framework setup, management-review packs, status reports) ship separately as [`upscaler-adv-skills`](https://github.com/upscaler-io/upscaler-adv-skills).
-
 ## Supported agents
 
 Each skill is written as platform-neutral markdown (instructions + optional scripts), so it works with any agent that can consume markdown context. Tested install paths:
@@ -41,19 +39,7 @@ The library is organized as a **hub-and-spoke**: `upscaler-ask` is the entry poi
 | [`upscaler-write-entry`](skills/upscaler-write-entry/) | Spoke | Create or update an entry (row, `i_*`) inside an existing register (`rg_*`): resolve fields, generate sample values, upload top-level and nested form-table files, propose-then-confirm before every write. |
 | [`upscaler-run-record`](skills/upscaler-run-record/) | Spoke | Create a record instance (`r_*`) from a record definition (`rd_*`) and drive its whole task flow: per-task form filling with values derived from the parent asset and its referenced assets, task completion in workflow order, and verification. Shares its form-filling core with `upscaler-write-entry`. |
 
-### Advanced skills (separate repository)
-
-Five further workflows live in [`upscaler-adv-skills`](https://github.com/upscaler-io/upscaler-adv-skills) and install alongside this library:
-
-| Skill | Description |
-| --- | --- |
-| `upscaler-prep-evidence` | Auditor-ready control evidence packs. |
-| `upscaler-review-design` | ISO 27001 gap review of a PRD, ADR, or design doc. |
-| `upscaler-setup-framework` | Installed-framework setup: Test bindings, overrides, SoA-driven Test curation. |
-| `upscaler-prep-management-review` | Clause 9.3 management-review input packs. |
-| `upscaler-report-status` | Audience-calibrated compliance-posture status reports. |
-
-`upscaler-ask` degrades gracefully when they are absent: it answers whatever part of the request is a plain lookup, then says the full workflow ships separately rather than half-building the artifact. Installing `upscaler-adv-skills` restores end-to-end routing through its `upscaler-adv-routing` skill.
+`upscaler-ask` is scoped to questions and to the three spokes above. When a request needs a workflow this library does not cover (assembling an evidence pack, gap-reviewing a design doc, configuring an installed framework, preparing a management review, producing a status report), it answers whatever part of the request is a plain lookup and says the rest is out of scope, rather than half-building the artifact.
 
 > More skills coming. See [CONTRIBUTING.md](CONTRIBUTING.md) to propose one.
 
