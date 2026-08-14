@@ -82,7 +82,19 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
         if ":" not in raw:
             raise ValueError(f"Malformed frontmatter line: {raw!r}")
         key, value = raw.split(":", 1)
-        frontmatter[key.strip()] = value.strip().strip('"').strip("'")
+        key, value = key.strip(), value.strip()
+        # A ": " inside an unquoted plain scalar is a nested mapping to a real
+        # YAML parser, which rejects it. Splitting on the first colon alone
+        # hides that, so the error only surfaces in the upstream agentskills
+        # check in CI. Catch it here instead.
+        quoted = len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'"
+        if not quoted and ": " in value:
+            raise ValueError(
+                f"Frontmatter value for {key!r} contains ': ' outside quotes; "
+                "strict YAML parsers read that as a nested mapping and fail. "
+                "Rephrase to drop the colon, or quote the whole value."
+            )
+        frontmatter[key] = value.strip('"').strip("'")
 
     body = "\n".join(lines[end + 1 :]).strip()
     return frontmatter, body
