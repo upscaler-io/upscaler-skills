@@ -35,6 +35,7 @@ Exits non-zero on failure. No third-party dependencies.
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 import sys
 import zipfile
@@ -46,18 +47,9 @@ SHARED_REFS_DIR = REPO_ROOT / "references"
 DIST_DIR = REPO_ROOT / "dist" / "editors"
 CODEX_MANIFEST = REPO_ROOT / ".codex-plugin" / "plugin.json"
 
-# Directory the bundles park every linked reference under. One namespaced root
-# keeps a flattened skill's links unambiguous and collision-free.
-REF_ROOT = "upscaler-skills-refs"
-SHARED_SUBDIR = f"{REF_ROOT}/shared"
-
 # Support directories inside a skill that ship with the bundles. `evals/` is
 # development-only tooling and is deliberately excluded.
 SUPPORT_DIRS = ("references", "examples", "scripts")
-
-# A `../` chain reaching the repo-root references/ directory. From SKILL.md,
-# which sits at the skill root, that chain is exactly two segments long.
-SHARED_LINK_RE = re.compile(r"(?:\.\./){2}references/([A-Za-z0-9][A-Za-z0-9._-]*\.md)")
 
 IGNORE_NAMES = {"__pycache__", ".DS_Store", "Thumbs.db"}
 
@@ -67,11 +59,27 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
-def bundle_version() -> str:
+def _plugin_identity() -> tuple[str, str]:
+    """(name, version) from the Codex manifest, the only one carrying semver."""
     try:
-        return json.loads(CODEX_MANIFEST.read_text(encoding="utf-8"))["version"]
+        manifest = json.loads(CODEX_MANIFEST.read_text(encoding="utf-8"))
+        return manifest["name"], manifest["version"]
     except (OSError, ValueError, KeyError) as exc:
-        fail(f"could not read version from {CODEX_MANIFEST.name}: {exc}")
+        fail(f"could not read name/version from {CODEX_MANIFEST.name}: {exc}")
+
+
+PLUGIN_NAME, VERSION = _plugin_identity()
+
+# Directory the bundles park every linked reference under. Namespaced by plugin
+# name, not hard-coded, so two Upscaler bundles unzipped into the same project
+# cannot overwrite each other's copy of a shared reference that legitimately
+# differs between them (personas.md is one).
+REF_ROOT = f"{PLUGIN_NAME}-refs"
+SHARED_SUBDIR = f"{REF_ROOT}/shared"
+
+# A `../` chain reaching the repo-root references/ directory. From SKILL.md,
+# which sits at the skill root, that chain is exactly two segments long.
+SHARED_LINK_RE = re.compile(r"(?:\.\./){2}references/([A-Za-z0-9][A-Za-z0-9._-]*\.md)")
 
 
 def split_frontmatter(path: Path) -> tuple[dict[str, str], str]:
@@ -160,6 +168,24 @@ def collect_skills() -> list[tuple[Path, dict[str, str], str, list[str], set[str
     return collected
 
 
+def rewrite_support_file(text: str, rel: str) -> str:
+    """Repoint a support file's own links at the bundle's shared directory.
+
+    Support files are copied in whole, so their links travel with them. A file
+    at `<skill>/<rel>` links the repo-root references with a `../` chain of
+    depth+2; inside the bundle it sits at `<REF_ROOT>/<skill>/<rel>`, from
+    which the shared directory is depth+1 levels up. Sibling links within the
+    same skill are left alone, since the support tree keeps its shape.
+    """
+    depth = len(Path(rel).parts) - 1
+    out_of_skill = re.compile(
+        rf"(?:\.\./){{{depth + 2}}}references/([A-Za-z0-9][A-Za-z0-9._-]*\.md)"
+    )
+    return out_of_skill.sub(
+        lambda m: "../" * (depth + 1) + f"shared/{m.group(1)}", text
+    )
+
+
 def add_refs(archive: zipfile.ZipFile, prefix: str, skills, written: set[str]) -> None:
     """Write every linked reference into the archive under `prefix`."""
     for skill_dir, _, _, files, used in skills:
@@ -170,9 +196,16 @@ def add_refs(archive: zipfile.ZipFile, prefix: str, skills, written: set[str]) -
                 written.add(arc)
         for rel in files:
             arc = f"{prefix}{REF_ROOT}/{skill_dir.name}/{rel}"
-            if arc not in written:
-                archive.write(skill_dir / rel, arc)
-                written.add(arc)
+            if arc in written:
+                continue
+            source = skill_dir / rel
+            if source.suffix == ".md":
+                archive.writestr(
+                    arc, rewrite_support_file(source.read_text(encoding="utf-8"), rel)
+                )
+            else:
+                archive.write(source, arc)
+            written.add(arc)
 
 
 def verify_bundle(zip_path: Path, prefix: str) -> int:
@@ -181,7 +214,18 @@ def verify_bundle(zip_path: Path, prefix: str) -> int:
     Dead links are the exact failure the bundling exists to prevent, so this
     runs as part of the build rather than as a separate opt-in check.
     """
-    link_re = re.compile(rf"{re.escape(REF_ROOT)}/[A-Za-z0-9][A-Za-z0-9._/-]*")
+    # Every relative link, whoever wrote it: the ones this script rewrote and
+    # the ones it copied in untouched. Checking only the former would miss a
+    # support file that links out of the bundle on its own.
+    md_link_re = re.compile(r"\]\(([^)\s]+)\)")
+    bare_path_re = re.compile(r"(?:\.\./)+[A-Za-z0-9][A-Za-z0-9._/-]*\.(?:md|py)")
+    scheme_re = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|#|/)")
+    # Only targets that could name a file this script bundles. The skills
+    # document Upscaler's own markdown grammar, so their prose is full of
+    # illustrative paths (`./diagram.svg`, `<name>`, `url`) that are examples
+    # rather than links; checking those reports failures that do not exist.
+    checkable_re = re.compile(r"^[^<>]+\.(?:md|py)$")
+
     with zipfile.ZipFile(zip_path) as archive:
         names = set(archive.namelist())
         checked, dangling = 0, []
@@ -189,9 +233,14 @@ def verify_bundle(zip_path: Path, prefix: str) -> int:
             if not name.endswith((".md", ".mdc")):
                 continue
             text = archive.read(name).decode("utf-8")
-            for target in sorted(set(link_re.findall(text))):
+            targets = {t for t in md_link_re.findall(text) if not scheme_re.match(t)}
+            targets |= set(bare_path_re.findall(text))
+            targets = {t for t in targets if checkable_re.match(t)}
+            here = posixpath.dirname(name)
+            for target in sorted(targets):
                 checked += 1
-                if prefix + target not in names:
+                resolved = posixpath.normpath(posixpath.join(here, target))
+                if resolved not in names:
                     dangling.append(f"{name} -> {target}")
     if dangling:
         fail(
@@ -307,15 +356,14 @@ def main(argv: list[str]) -> int:
     if unknown:
         fail(f"unknown target: {unknown[0]} (expected 'cursor' and/or 'gemini')")
 
-    version = bundle_version()
     skills = collect_skills()
     print(f"Packaging {len(skills)} skill(s) for {', '.join(targets)} "
           f"into {DIST_DIR.relative_to(REPO_ROOT)}/")
 
     if "cursor" in targets:
-        build_cursor(skills, version)
+        build_cursor(skills, VERSION)
     if "gemini" in targets:
-        build_gemini(skills, version)
+        build_gemini(skills, VERSION)
     print("Done.")
     return 0
 

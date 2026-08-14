@@ -9,6 +9,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - `scripts/build_editor_bundles.py`, a stdlib-only packager for the two supported agents that have no Agent Skills loader. Produces `dist/editors/cursor-rules.zip` (one agent-requested `.mdc` rule per skill, laid out to unzip straight into `.cursor/rules/`) and `dist/editors/gemini-context.zip` plus a standalone `GEMINI.md`. Flattening a skill breaks its `../../references/…` and skill-local links, so both bundles carry every linked file under `upscaler-skills-refs/` with the links rewritten, and the build re-reads each archive and fails on any link that does not resolve.
 - `.github/workflows/package.yml`. Builds the offline bundle, the ChatGPT per-skill zips, the Cursor rules, and the Gemini context file on every push, pull request, and manual dispatch, and publishes them to a GitHub Release on a `v*` tag. Splits build from publish so only the tag-gated release job holds a write-scoped token, and fails a tag whose version disagrees with `.codex-plugin/plugin.json`.
 
+### Fixed
+
+- The editor bundles rewrote links in a skill's `SKILL.md` but copied its support files in untouched, so a support file carrying its own link out to a repo-root shared reference would land in the bundle pointing at nothing. No skill in this repo was affected; the bug surfaced in `upscaler-adv-skills`. Support files are now rewritten as well, and the build's verification pass was widened from "every link this script wrote" to "every relative link in the archive", which is what should have caught it.
+- The bundles' reference root now derives from the plugin name (`upscaler-skills-refs/`) instead of being hard-coded, so a second Upscaler Cursor bundle unzipped into the same project cannot overwrite a shared reference that legitimately differs between the two.
+
 ### Changed
 
 - README now documents Cursor and Gemini CLI as package downloads with stable `releases/latest/download/` URLs, replacing the hand-conversion instructions.
