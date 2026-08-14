@@ -4,7 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- README "Related projects" section linking [`upscaler-cli`](https://github.com/upscaler-io/upscaler-cli). The CLI that every skill falls back to when MCP is not configured is now open source under MIT, so the fallback path has readable source and its own issue tracker.
+
+### Changed
+
+- The CLI setup hint in `references/upscaler-access.md` no longer tells users to set `server_url` before logging in. The CLI now defaults to Upscaler's production API, so `pip install upscaler-cli && upscaler login` is the whole setup. Pointing at a different host is presented as the self-hosted case instead, which stops the printed hint from implying a step most users do not need.
 
 ## [1.0.0] - 2026-08-14
 

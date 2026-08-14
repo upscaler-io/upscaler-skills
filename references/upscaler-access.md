@@ -170,10 +170,11 @@ Option A, Upscaler MCP server (preferred)
   • Codex CLI:    add the upscaler MCP server to your Codex MCP config
   • Other agents: see https://upscaler.io/docs/mcp
 
-Option B, Upscaler CLI
+Option B, Upscaler CLI  (open source: https://github.com/upscaler-io/upscaler-cli)
   pip install upscaler-cli
-  upscaler config set server_url https://your-upscaler-host
   upscaler login
+  # Self-hosted or non-Upscaler host? Point it there first:
+  #   upscaler config set server_url https://your-upscaler-host
   # Optional: keep a separate auth bucket for a non-prod host
   #   upscaler --profile dev config set server_url https://your-dev-host
   #   upscaler --profile dev login

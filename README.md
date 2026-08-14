@@ -213,6 +213,12 @@ Once installed, ask naturally — the agent decides when to apply the skill base
 
 Each skill's `SKILL.md` documents the exact triggers and examples.
 
+## Related projects
+
+- [upscaler-cli](https://github.com/upscaler-io/upscaler-cli): the open-source
+  `upscaler` command these skills fall back to when the MCP server is not
+  configured. MIT licensed, installable with `pip install upscaler-cli`.
+
 ## Contributing
 
 We welcome new skills and improvements. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and use the [new-skill issue template](.github/ISSUE_TEMPLATE/new_skill.yml) to propose ideas.
