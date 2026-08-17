@@ -130,23 +130,17 @@ Because a task write replaces the whole values map, the CLI's read-splice-send s
 
 ### 7. Verify
 
-**Confirm the staged values with the draft read.** A draft save does not touch the record's committed values, so the draft read is the only surface that shows what you wrote:
-
-```bash
-upscaler --profile <p> --json get <r_*> --draft
-```
-
-Match the `t_*` under `tasks[]` and diff its `values` against the payload you sent. Note the shape difference from a committed read: the draft's `values` are **flat for that task** (`tasks[].values.<key>`), not nested under the task-definition id.
-
-**Do not verify a draft with `list entries --include-values`.** That list reports *committed* values only, so it keeps showing the record's pre-draft state (usually empty) until a human completes the task. A plain `get <r_*>` behaves the same way, and `get <r_*> --format schema` returns `current_value: null` for every field. All three read as "nothing landed" after a perfectly successful draft save. Reserve the values-bearing list for records a human has already completed, and never pass `--resolve-labels` with an `rd_*` (the per-task schema errors instead of relabelling).
-
-Verify workflow state and the automation-adjusted display title separately:
+**Read the task back from the record JSON.** A draft save writes the values onto the task and flips that task to `DRAFT`, so the plain record read is the verification surface:
 
 ```bash
 upscaler --profile <p> --json get <r_*>
 ```
 
-(MCP: `upscaler_get_asset({asset_id:"<r_*>", format:["json"]})`.) In the returned record JSON, match the `t_*`, confirm its `status` shows **DRAFT** (never completed; agents cannot complete), and read the record `title` and `status` (the record itself stays PENDING until a human completes its tasks). Apply the read-back tolerances from the shared core. Cite the result as `[<record title>](upscaler:<r_*>)`.
+(MCP: `upscaler_get_asset({asset_id:"<r_*>", format:["json"]})`.) Match the `t_*` under `tasks[]`, confirm its `status` shows **DRAFT** (never completed; agents cannot complete), and diff its `values` against the payload you sent. The values are **flat for that task** (`tasks[].values.<key>`), not nested under the task-definition id. Read the record `title` and `status` from the same payload (the record itself stays PENDING until a human completes its tasks). Apply the read-back tolerances from the shared core. Cite the result as `[<record title>](upscaler:<r_*>)`.
+
+**`--draft` is not the draft read.** That flag switches an `rd_*` **schema** read to the unreleased working copy of the *definition*; on an `r_*` it is ignored, so it neither helps nor hurts. A HITL task draft is read through the record JSON above.
+
+**Do not verify a draft with `list entries --include-values`.** That list reports *committed* values only, so it keeps showing the record's pre-draft state (usually empty) until a human completes the task. Reserve the values-bearing list for records a human has already completed, and never pass `--resolve-labels` with an `rd_*` (the per-task schema errors instead of relabelling).
 
 Then report the flow position: which tasks are drafted awaiting review, which tasks a human has completed, and which task is next. State explicitly that the drafts await human review in up-app; never report a task or the record as completed or closed by you.
 
@@ -155,7 +149,7 @@ Then report the flow position: which tasks are drafted awaiting review, which ta
 - **Treating a record like a register row.** Flat `{"values": {...}}` payloads, `--resolve-labels` against an `rd_*`, or writing without a `task_id` all fail or corrupt the shape. The task nesting is load-bearing.
 - **Claiming completion.** Agents save drafts; humans complete. Never say a task or record "has been completed" after a draft save, and never call a legacy completion surface to force it (it rejects with `HITL_AGENT_COMPLETE_REMOVED`).
 - **Boilerplate notes.** The required note is the reviewer's brief. "Draft" or "filled in" wastes the reviewer's one glance; summarize the values, their sources, and the gaps.
-- **Reading an empty values list as a failed draft save.** `list entries --include-values`, a plain `get <r_*>`, and `get <r_*> --format schema` all report *committed* values, which a draft deliberately leaves untouched. Verify with `get <r_*> --draft`; do not re-send the write because the list still looks empty.
+- **Reading an empty values list as a failed draft save.** `list entries --include-values` reports *committed* values, which a draft deliberately leaves untouched. Verify with the record JSON (`get <r_*>`, `tasks[].values`); do not re-send the write because the list still looks empty.
 - **Skipping ahead in a sequential flow.** Draft tasks in definition order and report the next task, so the human can complete them in sequence; a draft on a later task cannot unlock anything.
 - **Assuming `ff_*` keys.** Canonical seeded record definitions frequently use label-like machine keys. Read `fields[].key` per task, verbatim.
 - **Inventing `td_*` / `t_*` ids.** Task definition ids come from the `rd_*` schema; task instance ids come from the created record. Never fabricate either.
@@ -167,7 +161,7 @@ Then report the flow position: which tasks are drafted awaiting review, which ta
 
 **User:** "Create a meeting-minutes record for today's ISMS steering committee and fill in the details: chaired by Dana, minutes by me."
 
-**Skill should:** resolve the Meeting Minutes `rd_*` by title; read its schema (2 tasks); resolve Dana and the user against `list members`; propose Task 1 values (title, date `defaultToday`, chair, minute-taker) with sources shown; on confirmation `entry create` with title only, then `entry save-draft --task-id <t_task1> --note "Prefilled attendees and date from the request; agenda left open"` with the Task 1 values; verify via `list entries --definition-id <rd_*> --include-values`; report that Task 1 is drafted awaiting review, Task 2 (Agenda & Actions) is next, and offer to draft it.
+**Skill should:** resolve the Meeting Minutes `rd_*` by title; read its schema (2 tasks); resolve Dana and the user against `list members`; propose Task 1 values (title, date `defaultToday`, chair, minute-taker) with sources shown; on confirmation `entry create` with title only, then `entry save-draft --task-id <t_task1> --note "Prefilled attendees and date from the request; agenda left open"` with the Task 1 values; verify via `get <r_*>` (`tasks[]`: Task 1 `status: DRAFT`, values match); report that Task 1 is drafted awaiting review, Task 2 (Agenda & Actions) is next, and offer to draft it.
 
 **User:** "Complete the remaining tasks on `r_abc` with the retro notes I pasted."
 

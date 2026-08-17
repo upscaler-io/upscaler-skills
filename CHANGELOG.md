@@ -12,6 +12,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - The CLI setup hint in `references/upscaler-access.md` no longer tells users to set `server_url` before logging in. The CLI now defaults to Upscaler's production API, so `pip install upscaler-cli && upscaler login` is the whole setup. Pointing at a different host is presented as the self-hosted case instead, which stops the printed hint from implying a step most users do not need.
 
+### Fixed
+
+- `upscaler-run-record` verified a saved task draft with `get <r_*> --draft`. That flag only switches an `rd_*` **schema** read to the unreleased working copy of the definition; on an `r_*` it is ignored. The draft is read from the plain record JSON instead, where the task carries `status: DRAFT` and its own `values`. Step 7 now says so, and the worked example no longer verifies a draft with the committed-values list.
+- `upscaler-write-entry` told the agent to confirm a pending revision "from the mutation response". The response echoes the entry's live values, which a revision deliberately leaves unchanged, so it reads as a failed write. An error-free call is now documented as the whole receipt, since the stashed proposal has no agent-readable surface.
+
 ## [1.0.0] - 2026-08-14
 
 First release of `upscaler-skills` as a standalone repository.
