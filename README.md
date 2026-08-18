@@ -223,6 +223,10 @@ Each skill's `SKILL.md` documents the exact triggers and examples.
 
 We welcome new skills and improvements. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and use the [new-skill issue template](.github/ISSUE_TEMPLATE/new_skill.yml) to propose ideas.
 
+## Support
+
+Found a bug in a skill or want a new one? [Open an issue](https://github.com/upscaler-io/upscaler-skills/issues). For questions about the Upscaler platform itself, email [support@upscaler.io](mailto:support@upscaler.io).
+
 ## License
 
 [MIT](LICENSE)
