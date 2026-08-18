@@ -56,7 +56,9 @@ The whole library ships as a single Claude Code plugin (`upscaler-skills`) insid
 /plugin install upscaler-skills@upscaler
 ```
 
-Skills are then invokable under the namespaced form (`/upscaler-skills:upscaler-author-asset`) and trigger automatically when their description matches your prompt. Updates ship with each commit on `main`. To pin to a tag, append `@v1.0.0` (or any git ref) to the marketplace add command.
+Skills are then invokable under the namespaced form (`/upscaler-skills:upscaler-author-asset`) and trigger automatically when their description matches your prompt. Updates ship with each commit on `main`. To pin to a tag, append `@v1.1.0` (or any git ref) to the marketplace add command.
+
+The plugin also bundles the **Upscaler MCP server** ([`.mcp.json`](.mcp.json), endpoint `https://ai.upscaler.app/mcp`), so installing it configures the platform connection in the same step: the first time a skill reaches for an `upscaler_*` tool, Claude Code opens the OAuth sign-in in your browser and you pick the organization to authorize. No separate `claude mcp add` needed.
 
 ### OpenAI Codex CLI plugin (recommended)
 

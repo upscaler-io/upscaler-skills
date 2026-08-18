@@ -20,6 +20,7 @@
     "register"
   ],
   "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Upscaler Skills",
     "shortDescription": "Ask Upscaler anything, author assets, write register entries, draft records for human completion.",

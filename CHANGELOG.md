@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- **The plugin now bundles the Upscaler MCP server.** A root `.mcp.json` declares the remote HTTP server (`https://ai.upscaler.app/mcp`), so installing the Claude Code plugin configures the platform connection in the same step; OAuth sign-in starts in the browser on first tool use. The Codex manifest references the same file via `mcpServers`. The skills' MCP-first connection probe is unchanged, it simply finds the tools already present.
+
 ## [1.1.0] - 2026-08-18
 
 ### Added

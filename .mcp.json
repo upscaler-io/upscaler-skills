@@ -1,0 +1,6 @@
+{
+  "upscaler": {
+    "type": "http",
+    "url": "https://ai.upscaler.app/mcp"
+  }
+}
