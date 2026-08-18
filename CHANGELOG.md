@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- README gains UI-only install routes: the Claude app (claude.ai / Claude Desktop) via Customize → Plugins → Add marketplace, and ChatGPT via the prebuilt `chatgpt-*.zip` release assets, so neither path requires a terminal.
 - **The plugin now bundles the Upscaler MCP server.** A root `.mcp.json` declares the remote HTTP server (`https://ai.upscaler.app/mcp`), so installing the Claude Code plugin configures the platform connection in the same step; OAuth sign-in starts in the browser on first tool use. The Codex manifest references the same file via `mcpServers`. The skills' MCP-first connection probe is unchanged, it simply finds the tools already present.
 
 ## [1.1.0] - 2026-08-18

@@ -60,6 +60,17 @@ Skills are then invokable under the namespaced form (`/upscaler-skills:upscaler-
 
 The plugin also bundles the **Upscaler MCP server** ([`.mcp.json`](.mcp.json), endpoint `https://ai.upscaler.app/mcp`), so installing it configures the platform connection in the same step: the first time a skill reaches for an `upscaler_*` tool, Claude Code opens the OAuth sign-in in your browser and you pick the organization to authorize. No separate `claude mcp add` needed.
 
+### Claude app (claude.ai and Claude Desktop)
+
+The same plugin installs from the app UI, no terminal needed:
+
+1. Open the **Customize** menu and go to the **Plugins** tab.
+2. In the **Personal plugins** section, click the **+** button, then **Add marketplace**.
+3. Choose the **GitHub repository** option and point it at `upscaler-io/upscaler-skills`.
+4. The `upscaler-skills` plugin appears in the catalog for that marketplace; install it from there.
+
+The bundled Upscaler MCP server ships with the plugin here too: the first time a skill reaches for the platform, the OAuth sign-in opens and you pick the organization to authorize.
+
 ### OpenAI Codex CLI plugin (recommended)
 
 The repo also ships a [Codex plugin manifest](.codex-plugin/plugin.json) — Codex picks up `.codex-plugin/plugin.json` at the repo root and bundles every skill under `skills/`. From inside Codex CLI:
@@ -105,7 +116,14 @@ Asset names are stable across releases, so the URLs above always fetch the newes
 
 ### ChatGPT (upload packaged zips)
 
-ChatGPT (Business, Enterprise, Healthcare, and Edu plans) consumes the same Agent Skills format, but installs each skill as a self-contained folder, so the repo-root shared references have to be bundled into each package first. Build the packages, then upload them:
+ChatGPT (Business, Enterprise, Healthcare, and Edu plans) consumes the same Agent Skills format, but installs each skill as a self-contained folder, so the repo-root shared references are bundled into each package.
+
+**No terminal needed** — every release carries prebuilt per-skill zips:
+
+1. Open the [latest release](https://github.com/upscaler-io/upscaler-skills/releases/latest) and download the `chatgpt-*.zip` files you want (start with `chatgpt-upscaler-ask.zip`, the hub).
+2. In ChatGPT, go to **Settings → Skills → Upload from your computer** and upload each zip.
+
+To build the packages from source instead (e.g. for unreleased changes):
 
 ```bash
 git clone https://github.com/upscaler-io/upscaler-skills.git
