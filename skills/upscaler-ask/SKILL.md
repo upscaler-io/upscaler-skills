@@ -11,7 +11,7 @@ The entry point into the Upscaler agent-skills library. Acts like a compliance m
 
 This skill is **read-only on its own**. When the user asks for an artifact (evidence pack, gap review, new policy) or wants to mutate state (set a Test Binding, add a custom Test), it hands off to the corresponding specialist skill rather than fabricating output or writing inline.
 
-Write-capable spokes: `upscaler-author-asset` (drafts and revises asset definitions), `upscaler-write-entry` (creates/updates register entries `i_*`), and `upscaler-run-record` (creates record instances `r_*` and completes their tasks, including Supplier Agreement / Monitoring Activity review records). Write-capable spokes always use propose-then-confirm UX, never silent mutation.
+Write-capable spokes: `upscaler-author-asset` (drafts and revises asset definitions), `upscaler-write-entry` (creates/updates register entries `i_*`), and `upscaler-run-record` (creates record instances `r_*` and **drafts** their tasks for a human to complete, including Supplier Agreement / Monitoring Activity review records). Write-capable spokes always use propose-then-confirm UX, never silent mutation, and none of them finalizes: agent writes land as drafts that a human reviews in the Upscaler app. Route a "complete this" request to the spoke anyway, but do not promise the user that anything will be completed.
 
 Some workflow requests fall outside this library's scope. See [Workflows outside this library](#workflows-outside-this-library).
 
@@ -41,12 +41,12 @@ Match this **before** the domain categories below. Any question of the form "How
 Recipe (always **2 round-trips** total — one schema, one list — never loop `get` per entry):
 
 1. Resolve the register definition by title: `upscaler --json asset find --title "<register name>" --type register_definition`. If the user named a domain (e.g. "QMS processes"), try common register names: "Process Register", "Risk Register", "Supplier Register", "Audit Register", "Improvement Register".
-2. Fetch the schema once to find the exact label of the grouping field — labels are case-sensitive when passed to `--select-value`:
+2. Fetch the schema once to find the exact label of the grouping field — `--select-value` matches labels case-insensitively, but the label must exist verbatim in the schema:
    `upscaler --json get <rg_id> --format schema | jq '.data.schema.fields[] | {key, label}'`
 3. Pull entries projecting only the grouping field, with labels resolved client-side:
    `upscaler --json list entries --definition-id <rg_id> --select-value "<exact label>" --resolve-labels --limit 200`
    (MCP equivalent: `upscaler_list({ type: "entries", definition_id: "<rg_id>", select_values: ["<ff_…>"] })`. Resolve the `ff_*` key from the schema first.)
-4. Tally client-side (`group_by` in jq, or `Counter` in Python). Present as a markdown table with the total row. Value-shape rules for tallying: (a) multi-select and checkbox values are **arrays** — flatten before `group_by` or rows collapse into array-valued buckets; (b) select/radio store the option's visible **text**, so tallies and `--filter "<Label>=<value>"` predicates must match the option text exactly (never an index or id); (c) a missing/null key means the field was never answered — count it as its own "unanswered" bucket instead of silently dropping the row.
+4. Tally client-side (`group_by` in jq, or `Counter` in Python). Present as a markdown table with the total row. Value-shape rules for tallying: (a) multi-select and checkbox values are **arrays** — flatten before `group_by` or rows collapse into array-valued buckets; (b) select/radio store the option's visible **text**, so tallies and `--filter` predicates must match the option text exactly (never an index or id); (c) a missing/null key means the field was never answered — count it as its own "unanswered" bucket instead of silently dropping the row.
 
 Worked example — "Group the processes by Priority":
 
@@ -61,7 +61,7 @@ upscaler --json list entries --definition-id rg_T3o… \
 
 **Do not** loop `upscaler get <i_…>` per row. **Do not** call `--include-values` (which returns every field) when one or two fields suffice — `--select-value` keeps the payload tight. If `--select-value` rejects your label, re-read the schema and copy the exact string (matching is case-insensitive but the label must exist).
 
-When the question is a **predicate count** rather than a full breakdown ("how many risks are High?", "how many open audits?"), push the predicate server-side instead of pulling 200 rows: `upscaler --json list entries --definition-id <rg_id> --filter "<Label>=<value>" --limit 0` returns the count at `data.total` with an empty `data.items` list (MCP: `upscaler_list({ type:"entries", definition_id, filters:{ "values.<ff_>": "<value>" }, limit: 0 })`). Reserve the pull-and-tally pattern above for true group-by/distribution where no single predicate fits.
+When the question is a **predicate count** rather than a full breakdown ("how many risks are High?", "how many open audits?"), push the predicate server-side instead of pulling 200 rows: `upscaler --json list entries --definition-id <rg_id> --filter "ff_<key>=<value>" --limit 0` returns the count at `data.total` with an empty `data.items` list. `--filter` does **no** label resolution (unlike `--select-value`), so resolve the label to its `ff_*` key from the schema first — a label in `--filter` silently matches nothing (MCP: `upscaler_list({ type:"entries", definition_id, filters:{ "values.<ff_>": "<value>" }, limit: 0 })`). Reserve the pull-and-tally pattern above for true group-by/distribution where no single predicate fits.
 
 ## What this skill answers
 
@@ -98,6 +98,14 @@ upscaler --json framework list-requirement-contributions \
 
 Three calls to answer "is X covered?" with citations — instead of searching documents and walking the hierarchy.
 
+### Entry status vocabulary (applies to Recipes 2 and 3)
+
+Register entries share one lifecycle with record tasks: **`PENDING → DRAFT → COMPLETED`**, plus `ARCHIVED`. When you count, group, or tally entries, treat only COMPLETED rows as live register data:
+
+- **PENDING** is the birth state of a non-imported entry: created but never filled in. **DRAFT** means values are staged and awaiting human review, often proposed by an agent. Neither is finalized, so neither should be counted as a real risk, supplier, or finding. Imported entries land COMPLETED and are live immediately.
+- A tally that lumps them together overstates the register. Report the COMPLETED count as the answer and mention any PENDING/DRAFT rows separately as work in progress.
+- **Visibility depends on the caller.** Non-editors never see PENDING or DRAFT entries: a list silently omits them and a direct fetch fails with `DRAFT_NOT_AVAILABLE`. So the same question can return different counts for different people. If a total looks lower than the user expects, say that non-finalized rows may be hidden from the current token rather than asserting the register is smaller than it is.
+
 ### 2. Evidence & audit readiness
 
 Examples: "Which evidence is missing or expiring?" · "Show me last quarter's audit findings." · "Am I ready for the surveillance audit?"
@@ -122,7 +130,7 @@ Examples: "Top 5 open risks without an owner." · "Risks linked to control A.8.3
 Recipe:
 
 1. Pull risk-register entries with their values in one call: `upscaler_list({ type: "entries", definition_id: "<rg_id>", include_values: true })` or `upscaler --json list entries --definition-id <rg_id> --include-values --resolve-labels` (find the definition ID first with `upscaler --json asset find --title "Risk Register" --type register_definition`). If the question only needs a couple of fields (e.g. owner and score), pass `select_values: ["ff_…", "ff_…"]` / `--select-value "Risk owner" --select-value "Risk rating"` to keep the payload tight.
-2. Filter client-side on owner, status, linked control, score, or date as the question requires. Interpreting values: unwrap `{value, label}` owner/lookup values via `.value` before comparing; "risks without an owner" means a missing key **or** an empty value; when the register maps controls via a Linked Requirements field, match `requirementId` inside the `{frameworkId, requirementId}` objects rather than substring-matching text; calculated risk scores are persisted in the values map, so read and tally them directly.
+2. Filter client-side on owner, status, linked control, score, or date as the question requires. Apply the entry status vocabulary above before counting: a PENDING or DRAFT row is not an open risk. Interpreting values: unwrap `{value, label}` owner/lookup values via `.value` before comparing; "risks without an owner" means a missing key **or** an empty value; when the register maps controls via a Linked Requirements field, match `requirementId` inside the `{frameworkId, requirementId}` objects rather than substring-matching text; calculated risk scores are persisted in the values map, so read and tally them directly.
 3. Return a short narrative answer plus a compact list of cited entries. For "trend" or aggregate questions, summarize the count / movement and cite the underlying entries.
 
 ### 4. Document, policy & training lookup

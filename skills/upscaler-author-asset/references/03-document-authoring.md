@@ -24,11 +24,11 @@ Documents are stored as a **Slate JSON tree** and round-tripped as Markdown. The
 | --- | --- |
 | Heading | `## N. Title`, `### N.M Title` |
 | Paragraph | Plain text separated by blank lines |
-| Bulleted list | `- Item` — **flat lists only in markdown writes.** The markdown deserialiser does not support nesting: an indented child item (any marker, 2- or 4-space indent) is promoted to top level AND the parent line is merged with its first child into one corrupted line (`* Parent* Child`). Verified 2026-08-10 on a clean document. Nested lists render fine when built in the web editor and serialise correctly on read — but they will not survive any markdown write, including a read-modify-write of a document that already contains them (see "Updating an existing document"). Where sub-structure is needed in authored markdown, restructure as flat bullets under a bolded lead-in, a table, or `<ul><li>` HTML inside a table cell (which does survive). |
+| Bulleted list | `- Item` — **keep lists flat whenever a round-trip is expected.** The deserialiser stores nesting correctly (a parent `list-item` containing a nested list, per the platform's own regression tests) and the web UI renders it; it is the **markdown read-back** that flattens nesting and merges each parent with its first child into one corrupted line (`* Parent* Child`). A greenfield nested write is therefore stored fine, but any read-modify-write cycle destroys the nesting because the fetched body already carries the merged form (see "Updating an existing document"). Where sub-structure must survive agent round-trips, restructure as flat bullets under a bolded lead-in, a table, or `<ul><li>` HTML inside a table cell. |
 | Numbered list | `1. Item`, `2. Item` |
 | Table | Standard Markdown `|` table |
 | Blockquote | `> text` — plain quote block |
-| Callout / note | GFM alert blockquote: first line `> [!NOTE]` / `> [!TIP]` / `> [!IMPORTANT]` / `> [!WARNING]` / `> [!CAUTION]`, body on following `> ` lines. Deserialises to the `note` block with `options.type` info / question / info / warning / error respectively. Round-trips as `<note type="..." data-content="...">`, which is also hand-authorable and additionally accepts `type="success"`, `type="default"`, and a `title` attribute. Note: `> **Note**: text` does **not** create a callout — it stores a plain quote block. |
+| Callout / note | GFM alert blockquote: first line `> [!NOTE]` / `> [!TIP]` / `> [!IMPORTANT]` / `> [!WARNING]` / `> [!CAUTION]`, body on following `> ` lines. Deserialises to the `note` block with `options.type` info / question / info / warning / error respectively. Round-trips as `<note type="..." data-content="...">`, which is also hand-authorable and additionally accepts `type="success"` and a `title` attribute. The legal `type` set is exactly `info | question | success | warning | error` (omit `type` and it defaults to `info`); anything else — including `type="default"` — fails validation and rejects the write. Note: `> **Note**: text` does **not** create a callout — it stores a plain quote block. |
 | Bold | `**text**` |
 | Italic | `*text*` |
 | Inline code | `` `text` `` |
@@ -37,14 +37,14 @@ Documents are stored as a **Slate JSON tree** and round-tripped as Markdown. The
 | Thematic break | `---` (between `##` sections only) |
 | Asset link | `[Title](/document_definition/DOCUMENT_ID)` |
 | Mermaid diagram | ` ```mermaid ... ``` ` fenced block (≤10 nodes) |
-| Image attachment | `<format-image fileUid="<uid>" fileName="...">` (hand-authorable). Round-trips as `![filename](./_attachments/<uid>.<ext>)`. |
-| File attachment | `<format-file fileList='[{...}]'>` (hand-authorable). Round-trips as `[📎 filename](./_attachments/<uid>.<ext>)`. |
+| Image attachment | `<format-image fileUid="<uid>" fileName="...">` (hand-authorable). CLI/MCP markdown reads round-trip it as `![<name>](<name>)`; the `./_attachments/<uid>.<ext>` URL form appears only in export bundles. |
+| File attachment | `<format-file fileList='[{...}]'>` (hand-authorable). CLI/MCP markdown reads round-trip it as `[📎 <name>](<name>)`; the `./_attachments/<uid>.<ext>` URL form appears only in export bundles. |
 | Data-table embed | Read-side round-trip output only: fenced ` ```yaml ` block with a `table:` root key. **Not hand-authorable** — yaml fences in submitted markdown are silently dropped. The fence carries the block options: `sourceType` (`item` = register, `record` = record definition), `sourceId`, `columns` (v2 `dataIndex` paths start with `values`, e.g. `["values","ff_abc"]`), and optionally `filter`, `dataFilterString`, `sorter`, `paginationSize` (`default` \| `small`). |
 | Data-chart embed | Read-side round-trip output only: fenced ` ```yaml ` block with a `chart:` root key (options: `chartType`, `sourceType` / `sourceId` as per data-table, `xAxis: {dataIndex}`, `yAxis: [{dataIndex, aggregate}]`). Not hand-authorable. |
 
-A table-of-contents block (`toc`) exists in the editor but cannot be authored in Markdown: no Markdown or custom-element syntax deserialises to it. To pre-place one, submit Slate JSON via `--values-type slateJson` with `{ "type": "toc", "children": [{ "text": "" }] }`; otherwise treat it as editor-insert-only.
+A third hand-authorable custom element exists alongside `<note>` and `<embed>`: `<diagram>`, which deserialises to the editor's diagram block. This skill never emits it (diagram content is editor-drawn), but do not treat it as an unknown tag when reading a document back. A table-of-contents block (`toc`) exists in the editor but cannot be authored in Markdown: no Markdown or custom-element syntax deserialises to it. To pre-place one, submit Slate JSON via `--values-type slateJson` with `{ "type": "toc", "children": [{ "text": "" }] }`; otherwise treat it as editor-insert-only.
 
-To pre-populate a `data-table` or `data-chart`, use the Workflow B slateJson path with a **complete** options object — write validation rejects incomplete blocks (data-table: `sourceType` + `sourceId` + at least one column, each with `dataIndex` and `title`; data-chart: `chartType` + `sourceType` + `sourceId` + `xAxis` + `yAxis` entries with `dataIndex` and `aggregate`). Caveat: the write-path validator accepts only `chartType: pie | column | line` — `bar` / `area` exist in the editor UI but fail slateJson writes. The yAxis aggregation key is `aggregate` (SUM / AVERAGE / MIN / MAX).
+To pre-populate a `data-table` or `data-chart`, use the Workflow B slateJson path with a **complete** options object — write validation rejects incomplete blocks (data-table: `sourceType` + `sourceId` + at least one column, each with `dataIndex` and `title`; data-chart: `chartType` + `sourceType` + `sourceId` + `xAxis` + `yAxis` entries with `dataIndex` and `aggregate`). All five `chartType` values are accepted: `pie | column | line | bar | area`. The yAxis aggregation key is `aggregate` (SUM / AVERAGE / MIN / MAX). (Enforcement gap to not rely on: when `yAxis` is supplied as an array — the documented shape — the validator skips the per-entry `dataIndex`/`aggregate` checks, so an incomplete entry writes fine and renders broken. Supply complete entries anyway.)
 
 ## Language conventions
 
@@ -179,17 +179,20 @@ Revising a live `d_*` document is **higher risk than creating a new one**: the w
 Procedure:
 
 ```bash
-# 1. Snapshot the Slate tree FIRST — this is your only rollback source.
-upscaler get <d_*> --format json > snapshot-slate.json
+# 1. Snapshot the current body FIRST — this is your only rollback source.
+#    (No agent surface returns the raw Slate tree: --format json carries the
+#    markdown serialisation too, so the snapshot inherits the same read-back
+#    lossiness. It still lets you restore everything the serialiser preserves.)
+upscaler get <d_*> --json > snapshot.json   # body at .data.json.text
 
-# 2. Fetch the markdown body and strip the leading YAML frontmatter block.
-upscaler get <d_*> --json   # extract .data.json.text, drop through the closing '---'
+# 2. Strip the leading YAML frontmatter block from the body
+#    (drop through the closing '---').
 
 # 3. Gate: count nested list items in the body.
 grep -cE '^\s+[-*] ' body.md
-#    If > 0, STOP — a markdown write will flatten them and merge parents into
-#    children. Make the edit in the web editor, or write via --values-type
-#    slateJson using the snapshot from step 1 as the base tree.
+#    If > 0, STOP — the fetched body already merged them (read-back is the
+#    lossy side), so writing it back would store the corruption. Nesting can
+#    only be preserved by making the edit in the web editor.
 
 # 4. Apply edits with unique-anchor replacement (assert each old string occurs
 #    exactly once), not wholesale regeneration.
@@ -203,7 +206,7 @@ grep -cE '^\s+[-*] ' body.md
 #    destroyed elsewhere in the document.
 ```
 
-Propose-then-confirm applies doubly here: show the user a diff of old vs new **before** the write, and warn explicitly that the change publishes immediately to every viewer group on the document.
+Propose-then-confirm applies doubly here: show the user a diff of old vs new **before** the write, and warn explicitly that the write silently replaces the document's shared working copy — including any designer's in-progress edits — with no version check; viewers see it as soon as someone publishes in the UI.
 
 ## Attaching images and files
 
@@ -343,8 +346,8 @@ When `upscaler get <doc> --format markdown` round-trips a Slate document, attach
 
 | Slate `type` | Round-trip output | Hand-authorable input |
 | --- | --- | --- |
-| `image` | `![filename](./_attachments/<uid>.<ext>)` | `<format-image fileUid="<uid>" fileName="...">` |
-| `file` | `[📎 filename](./_attachments/<uid>.<ext>)` | `<format-file fileList='[{...}]'>` |
+| `image` | `![<name>](<name>)` (export bundles use `![<name>](./_attachments/<uid>.<ext>)` instead) | `<format-image fileUid="<uid>" fileName="...">` |
+| `file` | `[📎 <name>](<name>)` (export bundles use `./_attachments/<uid>.<ext>` instead) | `<format-file fileList='[{...}]'>` |
 | `data-table` | Fenced ` ```yaml ` block with a `table:` root key (columns, sourceType, sourceId) | — |
 | `data-chart` | Fenced ` ```yaml ` block with a `chart:` root key (chartType, sourceType, sourceId, axes) | — |
 
@@ -352,7 +355,7 @@ When `upscaler get <doc> --format markdown` round-trips a Slate document, attach
 
 ## Common mistakes
 
-- Nested/indented list items in any markdown write — the deserialiser flattens them and merges each parent into its first child (`* Parent* Child`). Flat lists only; see "Allowed block types".
+- Nested/indented list items in a body destined for round-trip editing — the markdown read-back flattens them and merges each parent into its first child (`* Parent* Child`), so a read-modify-write stores the corruption even though the original write was stored correctly. Keep lists flat; see "Allowed block types".
 - Round-tripping a fetched document (frontmatter and all) back through `update-content` — strip the leading YAML block first, gate on nested lists, and diff after writing. See "Updating an existing document".
 - Two `# H1` headings in one document (only the title is H1).
 - Numbered `## H2` but unnumbered `### H3` — numbering must be consistent.

@@ -11,7 +11,9 @@ Run this checklist **before returning** any generated asset definition. Every it
 5. **Every `<form-*>` element is from the 17-element whitelist** in `02-form-elements.md`. Reject invented names. `form-framework-requirement-picker` is a real platform block, not an invented name, but it still fails this check: the markdown deserialiser silently drops it on save, so strip it and warn the user before re-submitting a definition that contains it.
 6. **Every form field `name` matches `^ff_[A-Za-z0-9]{28}$`** (base62 only — no underscore, no hyphen). Run `python3 scripts/generate_field_id.py --check <id>` if unsure. Never hand-craft IDs. An id with characters outside `[A-Za-z0-9_]` (e.g. a hyphen) is silently dropped by `select_values`, so the field stops resolving even though create succeeds.
 7. **Every form field `name` is unique** across the entire asset.
-8. **Every HTML attribute value is quoted.** `required="true"`, never `required=true`, never `required="True"`, never bare `required`.
+8. **Every HTML attribute value is quoted.** `required="true"`. (House style — the parser tolerates unquoted values and bare flags — but quoting is load-bearing on the JSON-carrying attributes, so apply it everywhere for consistency.)
+8a. **Every field has a non-empty `title`.** The platform validator requires `title` alongside `name` on every field type except `form-auto-increment` and `form-asset-picker`, and an issue of any severity (warnings included) rejects the write.
+8b. **`<note type="...">` uses only `info | question | success | warning | error`** (or omits `type`), and **`<embed>` has a `url`** — both are write-rejecting validations.
 9. **Rating `form-radio` uses the fixed colour scale.** `green → cyan → gold → orange → volcano` (or `magenta` for the very top).
 10. **Yes/No `form-radio` uses `optionType="button"`** with Yes=`volcano`, No=`green`.
 11. **`form-checkbox` `values` is a JSON array of plain strings**, not objects.
@@ -19,7 +21,7 @@ Run this checklist **before returning** any generated asset definition. Every it
 
 ## Document checks
 
-13. Exactly one `# H1` — the document title, first line.
+13. Exactly one `# H1` — the document title, first line. (Know what it does: the deserialiser *discards* depth-1 headings — the stored title comes from the create payload's `title` field — so the H1 is a readability convention for the markdown source, and `##`/`###` map to the stored h1/h2.)
 14. All `##` are numbered: `## 1. Name`, `## 2. Name`, …
 15. All `###` are numbered: `### 1.1 Name`, `### 1.2 Name`, …
 16. No heading level is skipped (no H2 → H4).
@@ -27,7 +29,7 @@ Run this checklist **before returning** any generated asset definition. Every it
 18. **No `<form-*>` field widgets** in documents (those are register/record-only). Image, file, and data-table attachment blocks ARE permitted — they're Slate-native and attached via `upscaler asset upload-file` after publish; see `03-document-authoring.md`. The markdown-authorable content blocks (`quote`, `code-block`, `mermaid`, `divider`, `grid`, `note`, `embed`) are also permitted; `toc` and `data-chart` cannot be authored in markdown.
 18a. **No hand-authored image/file URLs.** `![alt](./local-path.svg)` and similar are silently stripped on save (the markdown round-trips as `![alt]()`). Attachments must come from the upload path.
 18b. **`<format-image>` / `<format-file>` are the only authorable HTML attachment tags.** Valid in any asset category. Other `<format-*>` tags are dropped. Full grammar in `02-form-elements.md` → "Attachment elements".
-18c. **No nested/indented list items** (`grep -E '^\s+[-*] '` must return nothing). The markdown deserialiser flattens nesting and merges each parent bullet with its first child into one corrupted line. Flat lists only; restructure sub-items as flat bullets under a bolded lead-in, a table, or `<ul><li>` inside a table cell.
+18c. **No nested/indented list items** (`grep -E '^\s+[-*] '` must return nothing). Nesting is stored correctly on write, but the markdown read-back flattens it and merges each parent bullet with its first child, so any later read-modify-write stores the corruption. Keep authored lists flat; restructure sub-items as flat bullets under a bolded lead-in, a table, or `<ul><li>` inside a table cell.
 19. Language register matches the subtype:
     - `policy` uses "shall" for mandatory requirements.
     - `procedure` uses imperatives.

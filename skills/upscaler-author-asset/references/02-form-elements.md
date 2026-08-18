@@ -22,10 +22,10 @@ Both families share the attribute grammar below but deserialise to different Sla
 
 These rules apply to both families. Per-family exceptions are called out inline.
 
-1. **Every attribute value is a quoted string.** `required="true"`, never `required=true` / bare `required` / `required="True"`.
+1. **Quote every attribute value as a string:** `required="true"`. House style, not a parser rule — the parser also accepts unquoted values and turns a bare attribute into `true` — but consistent quoting keeps the JSON-carrying attributes safe, where quoting genuinely decides whether the write survives (rule 3).
 2. **String attributes use double quotes**: `name="ff_..."`, `fileUid="..."`, `title="..."`.
 3. **JSON attributes use single quotes** wrapping JSON with double quotes inside: `values='[{"text":"A","color":null}]'`, `fileList='[{"uid":"...","name":"..."}]'`.
-4. **Opening and closing tags on every element**: `<form-text ...></form-text>`. Self-closing (`/>`) is **not** allowed for `<form-*>`; it **is** allowed for `<format-*>`.
+4. **Opening and closing tags on every element**: `<form-text ...></form-text>`. The parser accepts self-closing (`/>`) for both `<form-*>` and `<format-*>`, but this skill emits paired tags as house style.
 5. Every element renders on its own line, separated from siblings by a blank line.
 
 Form-element-only rules (do not apply to `<format-*>`):
@@ -196,14 +196,14 @@ Column `key` / `dataIndex` must be identical, unique within the table, and must 
 
 ### 13. `form-lookup` — reference another register
 
-`filterParentId` holds the target register definition ID.
+`filterParentId` holds the target register definition, as an array of **objects** — the same `{label, key, value}` shape as `recordDefinitions` below. An array of plain id strings fails the platform validator ("Source [0] must be an object.") and rejects the write.
 
 ```html
 <!-- TODO: replace REGISTER_ID_HERE with the actual register definition id -->
 <form-lookup name="ff_GjtyQCwg3lqphgNAL6F1TOtIUPwN" title="Related Risks"
   required="false" placeholder=""
   guidance="Select related risks from the risk register."
-  multiple="true" filterParentId='["REGISTER_ID_HERE"]'></form-lookup>
+  multiple="true" filterParentId='[{"label":"Risk Register","key":"REGISTER_ID_HERE","value":"REGISTER_ID_HERE"}]'></form-lookup>
 ```
 
 ### 14. `form-recordlink` — link to record definitions
@@ -316,7 +316,7 @@ Deserialises to:
 
 - **uids are platform-assigned.** Hand-crafted uids render as broken attachments. For **files**, `upscaler asset upload-file --field <name>` populates an existing `type: "file"` block and assigns the uid. For **images**, the CLI's `upload-file` ignores image blocks, so the only scripted path is presign + S3 POST through the SDK — see `03-document-authoring.md` → Workflow C for the Python snippet.
 - **`status` and extra entry fields are transient.** The backend persists only `uid`, `name`, `type`, `size`, `addedAt` from each `fileList` entry and recomputes `status` from S3 on every read (`done` when the object exists), so `status:"done"` and `addedAt` in authored entries are optional. Blocks created via `<format-file>` carry no `options.name`, so `upscaler asset upload-file --field <name>` cannot target them later; only editor-inserted file blocks (which get `options: { name, title }`) are addressable by `--field`.
-- **One-way syntax.** The Slate → markdown serializer always emits the URL form (`![filename](./_attachments/<uid>.<ext>)` for images, `[📎 filename](./_attachments/<uid>.<ext>)` for files). `<format-*>` is an authoring shortcut; re-exporting an asset never round-trips back to it.
+- **One-way syntax.** The Slate → markdown serializer always emits the link form, never `<format-*>`: CLI/MCP reads render `![<name>](<name>)` for images and `[📎 <name>](<name>)` for files, while export bundles use `./_attachments/<uid>.<ext>` paths. `<format-*>` is an authoring shortcut; re-exporting an asset never round-trips back to it.
 - **Documents:** the standard placeholder + post-create upload workflow lets the editor place the block. `<format-*>` is only needed when scripting batch authoring with uids in hand. See `03-document-authoring.md` → Workflow C.
 
 ## Rating colour scale

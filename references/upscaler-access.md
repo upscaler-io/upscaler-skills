@@ -42,6 +42,8 @@ The Upscaler MCP server and CLI expose the same surface under different shapes. 
 | List members / groups / deleted assets | `upscaler_list` with `type: "members"|"groups"|"deleted_assets"` | `upscaler --json list members` / `list groups` / `list deleted` |
 | Create / update / delete an asset      | `upscaler_manage_asset`        | `upscaler asset create --type <type> --data @file.json` / `asset update --asset-id <id> --data …` / `asset delete --asset-id <id>` |
 | Create / update an entry (record/item) | `upscaler_manage_entry`        | `upscaler entry create --definition-id <id> --data @file.json` / `entry update --entry-id <id> --data …` |
+| Save a record **task draft** (the only agent path to a task) | `upscaler_manage_entry({operation:"save_task_draft", entry_id:"<r_*>", task_id:"<t_*>", data:{values, note}})` — there is **no** standalone `upscaler_save_task_draft` MCP tool | `upscaler entry save-draft --task-id <t_*> --note "<summary>" --data '{"values":{…}}'` (supports `--dry-run`) |
+| Read a record's staged task draft      | `upscaler_get_asset({asset_id:"<r_*>", format:["json"]})` | `upscaler --json get <r_*>` — read `tasks[]` for `status: DRAFT` and that task's `values`. **Not** `--draft`, which requests the unpublished working copy of a *definition* (meaningful on an `rd_*` schema read) and is not a task-draft read. |
 | Manage a todo                          | `upscaler_manage_todo`         | `upscaler todo {create,update,close,reopen,delete}`                |
 | Manage an automation                   | `upscaler_manage_automation`   | `upscaler automation {list,get,runs,create,update,enable,disable,run,delete}` |
 | Manage a compliance framework          | `upscaler_manage_framework`    | `upscaler framework {list-installed,get-installed,list-contributions,list-requirement-contributions,list-test-bindings,bind,update-binding,remove-binding,set-test-binding,clear-test-binding,set-test-override,reset-test-override,reset-overrides,add-test,remove-test,evaluate,sweep}` |
@@ -54,9 +56,20 @@ The Upscaler MCP server and CLI expose the same surface under different shapes. 
 
 For flag-level CLI detail, run `upscaler <command> --help`. The CLI is the canonical surface.
 
+### The HITL write contract (agents never finalize)
+
+Every value an agent writes to a record task or a register item lands as a **draft** for a human to review and finalize in the Upscaler app. This is a platform-level rule, not a per-skill convention, and it shapes both the tool surface and how a write is verified:
+
+- **Record tasks.** `completeTask` is gone from the agent surface: the `complete_task` MCP operation and the `entry complete-task` CLI command were both removed (CLI 0.3.0). On the server path the error is `HITL_AGENT_COMPLETE_REMOVED`, whose message names `save_task_draft`; the CLI never reaches the server — it fails locally with `No such command 'complete-task'`. Every task write routes through `saveTaskDraft`, including a record `create` carrying `taskValues` and an `entry update` carrying a `task_id`. A task already completed by a human rejects with `HITL_FINALIZED`; a skipped task rejects too (surfaced as `TASK_SKIPPED` on MCP; the CLI shows the raw backend error).
+- **Register items.** `create_item` / `update_item` keep their names but dispatch value writes to `saveItemDraft`, which is deliberately separate from the human apply path (`mergeItemValues` / `setItemValues`). Agents therefore have no `appliedDraftId` and no `expectedVersion` parameter, and cannot apply or discard a draft. On a PENDING or DRAFT item the values merge and the item shows DRAFT; on a COMPLETED item the live values stay untouched and the write is stashed as a **pending revision**.
+- **The reviewer note** travels as `data.note` on every tier; the CLI folds `--note` into it. It is required on `save_task_draft` and optional (but expected) on item writes.
+- **Statuses.** Items and tasks share one lifecycle: `PENDING → DRAFT → COMPLETED` (plus `ARCHIVED` for items, `SKIPPED` for tasks). A non-imported item is born PENDING; imports land COMPLETED. Non-editors cannot see PENDING or DRAFT items at all: a direct fetch fails with `DRAFT_NOT_AVAILABLE` and a list silently omits them.
+
+Verification differs by container, because a draft does not always touch the values a read returns. See the read-back rules in [`form-filling.md`](form-filling.md).
+
 ## Asset ID prefixes
 
-Both MCP and CLI auto-detect asset kind from the ID prefix. Use this table when reasoning about a hit returned by search. Note the definition-vs-instance split: a *definition* is the template/schema; an *instance* is one filled-in row or record created from it. Tests, schema reads, and authoring target definitions; status updates and "complete this" actions target instances.
+Both MCP and CLI auto-detect asset kind from the ID prefix. (`upscaler get` routes `d_`/`doc_`/`rg_`/`rd_`/`r_`/`rec_`/`i_`/`cd_` plus `to_`/`g_`/`t_`; `cr_`, `tg_`, `auto_`, and `td_` are not gettable by prefix, and `cl_` returns a pointer to its parent `cd_`.) Use this table when reasoning about a hit returned by search. Note the definition-vs-instance split: a *definition* is the template/schema; an *instance* is one filled-in row or record created from it. Tests, schema reads, and authoring target definitions; status updates and "complete this" actions target instances.
 
 | Prefix         | Kind        |
 | -------------- | ----------- |
@@ -78,7 +91,7 @@ A record instance carries its parent definition in `userRecordDefinitionId` (an 
 
 - **Global flags work in any position.** The CLI hoists `--json`, `--no-json`, `--quiet`, `--verbose`, `--server`, and `--profile` before parsing, so both `upscaler --json list todos` and `upscaler list todos --json` work. Prefer putting them first for consistent examples.
 - **`--data` accepts inline JSON, a file (`@payload.json`), or stdin (`-`).** Prefer files for anything non-trivial.
-- **Preview writes with `--dry-run` *where supported*.** The basic `asset`/`entry`/`todo`/`automation` create/update/delete commands, the asset task/lesson content commands, and `framework {bind,update-binding,remove-binding}` support it; check `--help` for the exact subcommand. The framework **Test** commands (`set-test-binding`, `clear-test-binding`, `set-test-override`, `reset-*`, `add-test`, `remove-test`, `evaluate`, `sweep`) do **not** support `--dry-run` — treat them as immediate writes.
+- **Preview writes with `--dry-run` *where supported*.** The basic `asset`/`entry`/`todo`/`automation` create/update/delete commands, `entry save-draft`, the asset task/lesson content commands, and `framework {bind,update-binding,remove-binding}` support it; check `--help` for the exact subcommand. The framework **Test** commands (`set-test-binding`, `clear-test-binding`, `set-test-override`, `reset-*`, `add-test`, `remove-test`, `evaluate`, `sweep`) do **not** support `--dry-run` — treat them as immediate writes.
 - **Exit codes and auth:** `0` success and `1` runtime error. Exit `2` can mean auth required **or** a Click usage error, so inspect stderr instead of classifying by code alone. If `status` returns `{"authenticated": false}` or stderr says `Run: upscaler login`, stop and ask for `upscaler [--profile <p>] login`. If `status` shows `expired: true` with `refresh_token_present: true`, run `upscaler [--profile <p>] refresh` and re-check once; normal API calls also auto-refresh on a 401. If refresh fails or no refresh token exists, ask for login. Never switch tiers to hide an auth or usage error.
 
 ## Profiles
@@ -87,7 +100,7 @@ A **profile** is an isolated bucket of CLI state (auth tokens + config). Use pro
 
 - **Selection:** `--profile <name>` overrides the `UPSCALER_PROFILE` env var, which overrides the built-in default (`prod`). It is a global option but is accepted in any position.
 - **Storage:** each profile lives at `~/.upscaler/profiles/{name}/` with its own `config.json`, `tokens.enc`, `.salt`, and `pending_device.json`. Deleting a profile dir removes all of its state.
-- **Defaults:** the `prod` profile uses the CLI's build-time server URL (the prod wheel ships pointing at the prod host); the `dev` profile's built-in default is staging (`https://ai.stg.upscaler.app`); any other profile name falls back to the build-time default. These are only defaults — a developer's `dev` profile is often pointed at a **local** host (e.g. `https://ai.localhost`). Don't infer the host from the profile name; read it from `upscaler profile list` / `upscaler status`. Override per-profile with `upscaler --profile <name> config set server_url <url>`.
+- **Defaults:** the `prod` profile (and any unrecognised profile name) defaults to `https://ai.upscaler.app`; the `dev` profile's built-in default is staging (`https://ai.stg.upscaler.app`). These are only defaults — a developer's `dev` profile is often pointed at a **local** host (e.g. `https://ai.localhost`). Don't infer the host from the profile name; read it from `upscaler profile list` / `upscaler status`. Override per-profile with `upscaler --profile <name> config set server_url <url>`.
 - **Resolution priority for any setting:** `--server` flag > `UPSCALER_SERVER` env > profile config > profile default. The env var is a global override; it wins over the active profile's saved config.
 - **Legacy migration:** existing users with `~/.upscaler/{config.json,tokens.enc,.salt}` are auto-migrated into `profiles/prod/` on first run, once, transparently.
 
@@ -108,7 +121,7 @@ When MCP is the active tier, profiles are not relevant — MCP host configuratio
 
 Before any create/update on an entry or asset, **inspect the schema** so the payload satisfies validation:
 
-- MCP: `upscaler_get_asset({ asset_id: "<definition-id>", format: ["schema"] })`, then `upscaler_list({ type: "field_options", definition_id: "<id>", field_key: "<key>" })` for a select/radio whose options are not already inlined. Checkbox options are in the schema; `field_options` returns none for checkbox.
+- MCP: `upscaler_get_asset({ asset_id: "<definition-id>", format: ["schema"] })`, then `upscaler_list({ type: "field_options", definition_id: "<id>", field_key: "<key>" })` for option-resolved fields (`lookup`, `record_link`, `member`) only. Select, radio, and checkbox options are always inlined in the schema; `field_options` returns an empty list for them.
 - CLI: `upscaler --json get <definition-id> --format schema`, then `upscaler --json list field-options --definition-id <id> --field-key <key>`.
 
 This applies even when the user supplies the payload — silent rejections are worse than a noisy preflight.
@@ -121,10 +134,10 @@ This applies even when the user supplies the payload — silent rejections are w
 
 `upscaler_list({ type: "entries" })` and `upscaler list entries` return `{_id, title}` per row by default. To read values, **do not** loop `get_asset` per row, opt the values into the same call:
 
-- **MCP:** `upscaler_list({ type: "entries", definition_id: "<id>", include_values: true })` for all values keyed by `ff_*`, or `select_values: ["ff_…", "ff_…"]` to project only specific fields. `select_values` implies `include_values`. Each key is an `ff_` field id — `ff_` + 28 base62 chars (`^ff_[A-Za-z0-9]{28}$`; the platform never mints `_` or `-`); keys with characters outside `[A-Za-z0-9_]` (e.g. hyphens) are dropped by the backend. Resolve `ff_*` keys to labels via a separate `upscaler_get_asset(format: ["schema"])` call when needed.
+- **MCP:** `upscaler_list({ type: "entries", definition_id: "<id>", include_values: true })` for all values keyed by `ff_*`, or `select_values: ["ff_…", "ff_…"]` to project only specific fields. `select_values` implies `include_values`. Each key is an `ff_` field id — the platform mints `ff_` + 28 base62 chars, while the backend's acceptance regex is the looser `^ff_[A-Za-z0-9_]+$`; keys outside it (e.g. hyphenated) are dropped **silently** (logged server-side only, no error to the caller). Resolve `ff_*` keys to labels via a separate `upscaler_get_asset(format: ["schema"])` call when needed.
 - **CLI:** `upscaler --json list entries --definition-id <id> --include-values` for raw `ff_*` keys. Add `--resolve-labels` to rewrite keys to their human labels in one extra schema fetch — this now recurses into nested **table** fields too, the only composite field type (column sub-ids resolve to their column labels), so you rarely need a follow-up schema read. Use `--select-value "<Label or ff_…>"` (repeatable) to project just the named field; accepts either the schema label (case-insensitive) or the `ff_*` key; unknown labels fail fast with an exit-2 `BadParameter` listing the valid labels.
 
-**Filter / count server-side first.** When the question names a concrete predicate, push it to the server instead of pulling every row: `list entries --filter "<Label or ff_>=<value>"` (repeat for AND; comma-separate values for OR) and `--sort <field>:asc|desc`. For a pure count use `--limit 0` (MCP `limit: 0`) — read the count from `data.total`; `data.items` is empty. Reserve client-side `jq` grouping for a true group-by where no server predicate fits.
+**Filter / count server-side first.** When the question names a concrete predicate, push it to the server instead of pulling every row: `list entries --filter "ff_<key>=<value>"` (repeat for AND; comma-separate values for OR) and `--sort <field>:asc|desc`. Unlike `--select-value`, **`--filter` does no label resolution**: it takes the raw stored key only (a bare key is auto-prefixed with `values.`), so resolve the label to its `ff_*` key from the schema first — a label in `--filter` silently matches nothing. For a pure count use `--limit 0` (MCP `limit: 0`) — read the count from `data.total`; `data.items` is empty. Reserve client-side `jq` grouping for a true group-by where no server predicate fits.
 
 Example group-by (no server aggregation for distributions yet — 16 entries, **2 round-trips** instead of 17; guard against missing values):
 
@@ -166,9 +179,10 @@ When the tool-name probe finds no `upscaler_*` tools and `command -v upscaler` f
 Upscaler is not connected in this session. I can't run this workflow until one of the following is set up:
 
 Option A, Upscaler MCP server (preferred)
-  • Claude Code:  /mcp add upscaler   (or add it via your agent's MCP configuration UI)
-  • Codex CLI:    add the upscaler MCP server to your Codex MCP config
-  • Other agents: see https://upscaler.io/docs/mcp
+  • Claude Code (terminal):  claude mcp add --transport http upscaler https://ai.upscaler.app/mcp
+  • Codex CLI:    add the upscaler MCP server to your Codex MCP config (~/.codex/config.toml)
+  • Other MCP clients: add a remote HTTP server with URL https://ai.upscaler.app/mcp
+    (OAuth sign-in opens in your browser on first use)
 
 Option B, Upscaler CLI  (open source: https://github.com/upscaler-io/upscaler-cli)
   pip install upscaler-cli
@@ -190,7 +204,7 @@ Tailor the agent-specific install hint to the host if known (Claude Code, Codex,
 - **Always pass `--json` to the CLI** when downstream parsing matters. Plain output is for humans, not for prompts.
 - **There is no MCP `authenticate` tool.** MCP auth is handled by the host's OAuth configuration. Match Upscaler tools by the `upscaler_*` suffix (the host prefix varies, e.g. `mcp__claude_ai_Upscaler_2__upscaler_list`); don't hard-code the prefix and don't expect an auth tool.
 - **`upscaler_search_documents` has no `kind` argument** (its input schema is `extra="forbid"`, so passing `kind` raises a validation error). It is hybrid semantic + keyword search over **document AND register-entry** content already. To restrict to entries, pass `asset_type: "item"` (the exact backend enum), or resolve the register definition (`upscaler_search_nodes` with `asset_types: ["register"]`) then `upscaler_list({ type: "entries", definition_id: "<rg_id>", include_values: true })`, or use `upscaler_manage_framework({ action: "list_requirement_contributions", … })` for bound evidence.
-- **`upscaler_search_nodes` (MCP) and `upscaler asset find` (CLI) are NOT the same operation.** `search_nodes` regex-matches title/description, excludes task/release/todo, and resolves type aliases (`document`/`register`/`record`). `asset find` is a wildcard (`*`,`?`) lookup over the asset tree with **no** alias resolution: `--type document` returns 0; you must pass the **raw** enum `--type document_definition`. Don't carry a `search_nodes` alias over to `asset find`.
+- **`upscaler_search_nodes` (MCP) and `upscaler asset find` (CLI) are NOT the same operation.** `search_nodes` regex-matches title/description and resolves three type aliases (`document`→`document_definition`, `register`→`register_definition`, `user_record_definition`→`record_definition`). `record` is **not** an alias — it is a first-class type meaning record *instances* (`r_*`); use `record_definition` to find an `rd_*`. `asset find` is a wildcard (`*`,`?`) lookup over the asset tree with **no** alias resolution: `--type document` returns 0; you must pass the **raw** enum `--type document_definition`. Don't carry a `search_nodes` alias over to `asset find`.
 - **Never loop `get_asset` to read each entry's field values.** `upscaler_list` / `list entries` returns `{_id, title}` only by default; ask for values explicitly via `include_values: true` / `--include-values` (or `select_values` / `--select-value` for a subset). See the "Listing entries with values" section above.
 - **There is no `upscaler search documents` subcommand.** It is just `upscaler search "<text>"`. Likewise no `upscaler get asset <id>` (just `upscaler get <id>`) and no `upscaler get asset-hierarchy <id>` (use `upscaler hierarchy <id>`).
 - **There is no `upscaler auth login`.** Auth lives at the top level: `upscaler login`, `upscaler status`, `upscaler refresh`, `upscaler logout`.

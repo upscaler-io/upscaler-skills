@@ -20,15 +20,19 @@ To add or edit queries, hand-edit the JSON. Keep negatives genuinely tricky — 
 ## Harness 1: trigger accuracy (skill-creator)
 
 ```bash
-SC=/Users/emmanuelkong/.claude/plugins/cache/claude-plugins-official/skill-creator/unknown/skills/skill-creator
+REPO=$(git rev-parse --show-toplevel)   # run from inside your upscaler-skills clone
+SC=$(ls -d "$HOME"/.claude/plugins/cache/*/skill-creator/*/skills/skill-creator | head -1)
+OUT="$HOME/upscaler-ask-evals"           # keep outputs outside the repo, see "Output location" below
+mkdir -p "$OUT/baseline"
+
 cd "$SC" && python3 -m scripts.run_eval \
-  --eval-set /Users/emmanuelkong/git/upscaler/agent-skills/skills/upscaler-ask/evals/trigger_eval.json \
-  --skill-path /Users/emmanuelkong/git/upscaler/agent-skills/skills/upscaler-ask \
+  --eval-set "$REPO/skills/upscaler-ask/evals/trigger_eval.json" \
+  --skill-path "$REPO/skills/upscaler-ask" \
   --runs-per-query 1 \
   --num-workers 4 \
   --model claude-opus-4-7 \
   --verbose \
-  > /Users/emmanuelkong/git/upscaler/agent-skills/skills/upscaler-ask-workspace/baseline/results.json
+  > "$OUT/baseline/results.json"
 ```
 
 **What this is measuring.** `run_eval.py` writes the skill's current `description:` text into a fresh slash-command alias `upscaler-ask-skill-<uuid>` in `.claude/commands/`, then runs each query and checks whether Claude invokes the *alias* via the `Skill` tool. It is the right tool for iterating on the description in isolation — it removes confounds from skill body content, examples, and so on.
@@ -49,11 +53,16 @@ Concretely, the first baseline run on this eval set scored 8/23 (all 15 positive
 ## Harness 2: tool-call cost (`tool_call_cost.py`)
 
 ```bash
-cd /Users/emmanuelkong/git/upscaler/agent-skills/skills/upscaler-ask/evals
-python3 tool_call_cost.py                  # all 15 should_trigger queries
-python3 tool_call_cost.py --limit 3        # smoke-test on first 3
-python3 tool_call_cost.py --out /path/to/dir
+cd "$(git rev-parse --show-toplevel)/skills/upscaler-ask/evals"
+OUT="$HOME/upscaler-ask-evals/tool-call-cost"
+
+python3 tool_call_cost.py --out "$OUT"              # all 15 should_trigger queries
+python3 tool_call_cost.py --limit 3 --out "$OUT"    # smoke-test on first 3
 ```
+
+### Output location
+
+Always pass `--out`. The default is `../../upscaler-ask-workspace/tool-call-cost/<timestamp>/`, which resolves to `skills/upscaler-ask-workspace/` inside the repo. `scripts/validate_skills.py` iterates every directory under `skills/` and requires a `SKILL.md` in each, so leaving that workspace in place breaks validation (and therefore CI and `scripts/build_bundle.py`) with `upscaler-ask-workspace: missing SKILL.md`. It is not gitignored either. Point `--out` outside the repo, or delete the workspace before validating.
 
 For each `should_trigger` query, the script spawns `claude -p <query> --output-format stream-json --verbose`, parses the streamed tool-use events, and records:
 
@@ -63,7 +72,7 @@ For each `should_trigger` query, the script spawns `claude -p <query> --output-f
 - `upscaler_bash_calls_count` — Bash calls that ran the `upscaler` CLI
 - `duration_ms`, `total_cost_usd`, `num_turns`
 
-Outputs land in `../../upscaler-ask-workspace/tool-call-cost/<timestamp>/`:
+Outputs land in `<--out>/<timestamp>/`:
 
 - `run-NN-<category>.json` — per-query raw result (written incrementally, survives mid-run crashes)
 - `runs.json` — all results in one file
@@ -83,7 +92,7 @@ Cost: each `claude -p` call uses Opus 4.7 with a ~46k-token cached context (the 
 ## Re-running after a skill change
 
 1. Edit `SKILL.md` (or its frontmatter).
-2. `python3 tool_call_cost.py` to re-measure cost on all 15.
+2. `python3 tool_call_cost.py --out "$OUT"` to re-measure cost on all 15.
 3. Compare the new `aggregate.json` against the previous timestamped dir.
 4. If trigger rate dropped or tool_calls spiked, read the affected per-query JSONs to see which tools the agent reached for.
 
@@ -95,7 +104,7 @@ evals/
 ├── trigger_eval.json        # the 23-query shared eval set
 └── tool_call_cost.py        # harness 2 implementation
 
-../upscaler-ask-workspace/
+$OUT/                        # outside the repo, e.g. ~/upscaler-ask-evals/
 ├── baseline/                # harness 1 outputs (run_eval.py)
 │   ├── results.json
 │   └── progress.log

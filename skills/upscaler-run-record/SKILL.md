@@ -2,14 +2,14 @@
 name: upscaler-run-record
 description: Use when the user asks to create, fill in, progress, complete, or close an Upscaler record instance (`r_*`), or to instantiate one from a record definition (`rd_*`) - audit records, incident records, meeting minutes, management review records, or any multi-task workflow form. Triggers on phrases like "complete record r_…", "create a new incident record", "fill in the audit record", "advance this record", "complete the Findings task", "tick off the tasks on r_…", "close out this record". Owns the whole record flow - task order, per-task form filling, draft-saving with a reviewer note, verification. Agents save drafts only; a human reviews and completes each task in the app. Do NOT use for register entries (`i_*` rows in an `rg_*` - use upscaler-write-entry) or for authoring a NEW record definition (use upscaler-author-asset).
 license: MIT
-compatibility: Requires Upscaler MCP server (preferred) OR the `upscaler` CLI (`pip install upscaler-cli && upscaler login`). Write permission on the record's Organization.
+compatibility: Requires Upscaler MCP server (preferred) OR the `upscaler` CLI >= 0.3.0 (`pip install upscaler-cli && upscaler login`); `entry save-draft` does not exist before 0.3.0. Write permission on the record's Organization.
 ---
 
 # Upscaler record runner
 
 Creates record instances (`r_*`) from an existing record definition (`rd_*`) and drives them through their task flow: fill each task's form, save it as a **draft** with a reviewer note, and verify, in the order the definition's workflow dictates. The record definition is assumed to exist; authoring a new `rd_*` routes to `upscaler-author-asset`.
 
-**Agents never complete tasks.** The agent surface is human-in-the-loop: every task write lands as a DRAFT that a human assignee reviews (the draft banner in up-app shows your note and prefilled values) and completes themselves. Even when the user says "complete the task", what you can deliver is a draft ready for their one-click completion; say so in your report and never claim a task or record was completed.
+**Agents never complete tasks.** The agent surface is human-in-the-loop: every task write lands as a DRAFT that a human assignee reviews (the draft banner in the Upscaler app shows your note and prefilled values) and completes themselves. Even when the user says "complete the task", what you can deliver is a draft ready for their one-click completion; say so in your report and never claim a task or record was completed.
 
 This skill shares its **form-filling core** with `upscaler-write-entry`: the same schema-first key resolution, value shapes, and context-derivation rules, defined once in [`../../references/form-filling.md`](../../references/form-filling.md). What this skill adds on top is **record-flow awareness**: tasks, task order, per-task value nesting, and draft-saving.
 
@@ -19,7 +19,7 @@ This skill is **write-capable**. Every mutation goes through a **propose-then-co
 
 Run the connection-priority probe from [`../../references/upscaler-access.md`](../../references/upscaler-access.md) before any retrieval or mutation:
 
-1. **MCP first:** scan for `upscaler_get_asset`, `upscaler_list`, `upscaler_save_task_draft`, and `upscaler_manage_entry` (its operations are `create`, `update`, `save_task_draft`, `delete`; `task_id` is required for `save_task_draft` and for record updates).
+1. **MCP first:** scan for `upscaler_get_asset`, `upscaler_list`, and `upscaler_manage_entry` (its operations are `create`, `update`, `save_task_draft`, `delete`; `task_id` is required for `save_task_draft` and for record updates). There is no standalone `upscaler_save_task_draft` MCP tool — drafts go through `upscaler_manage_entry`.
 2. **CLI fallback:** otherwise use `upscaler --json get …`, `upscaler --json list …`, and `upscaler entry create|update|save-draft|upload-file`. Confirm authentication via `upscaler status`.
 3. **Setup prompt:** if neither is available, print the setup message from the shared reference and stop.
 
@@ -30,7 +30,7 @@ Record the chosen tier once per session and stay on it.
 - An `rd_*` **record definition** holds ordered **task definitions** (`td_*`), each with its own field list. The definition's schema (`get <rd_*> --format schema`) is therefore a per-task list, not one flat field set.
 - An `r_*` **record instance** holds one **task instance** (`t_*`) per task definition. Values nest per task: `values.<taskDefinitionId>.<key>`.
 - Most records are **sequential**: task N stays locked until task N−1 is completed. A draft save does not advance the flow; respect the definition order when drafting.
-- **Task completion is human-only.** There is no agent-facing completion command and no direct "set record status" command. To move a record forward, save a draft on each task (values + a required note) and hand off: the assignee reviews the draft banner in up-app and completes the task. A record closes only through those human completions.
+- **Task completion is human-only.** There is no agent-facing completion command and no direct "set record status" command. To move a record forward, save a draft on each task (values + a required note) and hand off: the assignee reviews the draft banner in the Upscaler app and completes the task. A record closes only through those human completions.
 
 ## When to use
 
@@ -53,7 +53,7 @@ Record the chosen tier once per session and stay on it.
 
 - **Given `r_*`:** fetch it (`upscaler --json get <r_*>` / `upscaler_get_asset`). Read its parent definition from `userRecordDefinitionId` (an `rd_*`), its task instances (`t_*`, each tied to a `td_*`), each task's status, and any values already filled.
 - **Given `rd_*`:** you are creating a fresh instance; go to step 2.
-- **Given a title** ("the Internal Audit record"): resolve it, MCP `upscaler_search_nodes({query, asset_types: ["record"]})`, CLI `upscaler --json asset find --title "<title>" --type record_definition` (raw enum; the `record` alias returns zero on the CLI). Stop and ask if the lookup returns zero or more than one hit. Determine from context whether the user wants a new instance or an existing one; when unsure, list existing instances with MCP `upscaler_list({type:"entries", definition_id:"<rd_*>"})` or CLI `upscaler --json list entries --definition-id <rd_*>`.
+- **Given a title** ("the Internal Audit record"): resolve it, MCP `upscaler_search_nodes({query, asset_types: ["record_definition"]})`, CLI `upscaler --json asset find --title "<title>" --type record_definition`. On both tiers `record` means record *instances* (`r_*`), never the definition — use it only when hunting for an existing instance by title. Stop and ask if the lookup returns zero or more than one hit. Determine from context whether the user wants a new instance or an existing one; when unsure, list existing instances with MCP `upscaler_list({type:"entries", definition_id:"<rd_*>"})` or CLI `upscaler --json list entries --definition-id <rd_*>`.
 
 ### 2. Read the definition schema and map the flow
 
@@ -105,7 +105,7 @@ upscaler --profile <p> entry save-draft --task-id <t_*> \
 
 **The note is load-bearing.** It is the reviewer's summary: say what you filled in, where the values came from, and anything left open or uncertain. A meaningful note is required; do not pass boilerplate like "draft".
 
-**MCP:** `upscaler_save_task_draft({record_id: "<r_*>", task_id: "<t_*>", note: "<summary>", values: {...}})`, or the consolidated form `upscaler_manage_entry({operation: "save_task_draft", entry_id: "<r_*>", task_id: "<t_*>", data: {values: {...}, note: "<summary>"}})`. Record creation is `upscaler_manage_entry({operation: "create", definition_id: "<rd_*>", data: {title: "..."}})`. For **item entries** (register rows, `upscaler-write-entry` territory) the tools keep their names and the note rides inside the data payload as `data.note`; the same holds for the CLI's REST envelope, where `--note` is folded into `data.note`.
+**MCP:** `upscaler_manage_entry({operation: "save_task_draft", entry_id: "<r_*>", task_id: "<t_*>", data: {values: {...}, note: "<summary>"}})`. Record creation is `upscaler_manage_entry({operation: "create", definition_id: "<rd_*>", data: {title: "..."}})`. For **item entries** (register rows, `upscaler-write-entry` territory) the tools keep their names and the note rides inside the data payload as `data.note`; the same holds for the CLI's REST envelope, where `--note` is folded into `data.note`.
 
 A bare record-level `{"values": {...}}` with no task nesting is rejected; register-style flat payloads do not fit records.
 
@@ -126,7 +126,9 @@ Because a task write replaces the whole values map, the CLI's read-splice-send s
 **Errors an agent may see:**
 
 - `HITL_FINALIZED`: the task was already completed by a human. Leave it unchanged and ask the assignee to make the edit; drafts can only be saved on tasks a human has not completed.
-- `HITL_AGENT_COMPLETE_REMOVED`: you called the removed agent task-completion mutation (`completeTask`, via the deleted `entry complete-task` command or the `complete_task` operation). This is the *only* gated mutation: a create with `taskValues` and an update with a `task_id` both route to `saveTaskDraft` and are fine. The error names `save_task_draft`; switch to it and retry as a draft.
+- `TASK_SKIPPED`: the task was skipped by the flow, so it is not a draft target either. Do not try to revive it by drafting; report it as skipped and move to the next open task. (This code is minted by the MCP error envelope; on the CLI the same rejection surfaces as the raw backend error about task status.)
+- `HITL_AGENT_COMPLETE_REMOVED`: you called the removed `complete_task` MCP operation. This is the *only* gated mutation: a create with `taskValues` and an update with a `task_id` both route to `saveTaskDraft` and are fine. The error names `save_task_draft`; switch to it and retry as a draft. (The deleted `entry complete-task` CLI command never reaches the server — it fails locally with `No such command 'complete-task'`.)
+- `VALIDATION_ERROR`: a value passed the agent-side shape check but the backend rejected it ("Invalid task values"). Treat it exactly like `VALUE_VALIDATION_ERROR`: re-read the schema and fix the offending value shape.
 
 ### 7. Verify
 
@@ -138,15 +140,15 @@ upscaler --profile <p> --json get <r_*>
 
 (MCP: `upscaler_get_asset({asset_id:"<r_*>", format:["json"]})`.) Match the `t_*` under `tasks[]`, confirm its `status` shows **DRAFT** (never completed; agents cannot complete), and diff its `values` against the payload you sent. The values are **flat for that task** (`tasks[].values.<key>`), not nested under the task-definition id. Read the record `title` and `status` from the same payload (the record itself stays PENDING until a human completes its tasks). Apply the read-back tolerances from the shared core. Cite the result as `[<record title>](upscaler:<r_*>)`.
 
-**`--draft` is not the draft read.** That flag switches an `rd_*` **schema** read to the unreleased working copy of the *definition*; on an `r_*` it is ignored, so it neither helps nor hurts. A HITL task draft is read through the record JSON above.
+**`--draft` is not the draft read.** That flag requests the unpublished working copy of a *definition* (meaningful on an `rd_*` schema read); it never returns a task's staged values. A HITL task draft is read through the record JSON above.
 
-**Do not verify a draft with `list entries --include-values`.** That list reports *committed* values only, so it keeps showing the record's pre-draft state (usually empty) until a human completes the task. Reserve the values-bearing list for records a human has already completed, and never pass `--resolve-labels` with an `rd_*` (the per-task schema errors instead of relabelling).
+**Do not verify a draft with `list entries --include-values`.** That list reports *committed* values only, so it keeps showing the record's pre-draft state (usually empty) until a human completes the task. Reserve the values-bearing list for records a human has already completed, and never pass `--resolve-labels` with an `rd_*` (the per-task schema has no flat field list, so keys silently come back unrelabelled).
 
-Then report the flow position: which tasks are drafted awaiting review, which tasks a human has completed, and which task is next. State explicitly that the drafts await human review in up-app; never report a task or the record as completed or closed by you.
+Then report the flow position: which tasks are drafted awaiting review, which tasks a human has completed, and which task is next. State explicitly that the drafts await human review in the Upscaler app; never report a task or the record as completed or closed by you.
 
 ## Anti-patterns
 
-- **Treating a record like a register row.** Flat `{"values": {...}}` payloads, `--resolve-labels` against an `rd_*`, or writing without a `task_id` all fail or corrupt the shape. The task nesting is load-bearing.
+- **Treating a record like a register row.** Flat `{"values": {...}}` payloads and writes without a `task_id` are rejected; `--resolve-labels` against an `rd_*` silently does nothing. The task nesting is load-bearing.
 - **Claiming completion.** Agents save drafts; humans complete. Never say a task or record "has been completed" after a draft save, and never call a legacy completion surface to force it (it rejects with `HITL_AGENT_COMPLETE_REMOVED`).
 - **Boilerplate notes.** The required note is the reviewer's brief. "Draft" or "filled in" wastes the reviewer's one glance; summarize the values, their sources, and the gaps.
 - **Reading an empty values list as a failed draft save.** `list entries --include-values` reports *committed* values, which a draft deliberately leaves untouched. Verify with the record JSON (`get <r_*>`, `tasks[].values`); do not re-send the write because the list still looks empty.
@@ -165,7 +167,7 @@ Then report the flow position: which tasks are drafted awaiting review, which ta
 
 **User:** "Complete the remaining tasks on `r_abc` with the retro notes I pasted."
 
-**Skill should:** `get r_abc`; find its `rd_*` and per-task status; read already-completed task values for context; map the pasted notes onto the next unlocked task's fields (shared-core value shapes); propose; on confirmation `entry save-draft --entry-id r_abc --task-id <t_*> --note "<summary of what was mapped from the retro notes>" --data '{"values": {...}}'`; verify, then repeat for each remaining task in order, one confirmation each; close by reporting every task is drafted and the assignee completes them in up-app.
+**Skill should:** `get r_abc`; find its `rd_*` and per-task status; read already-completed task values for context; map the pasted notes onto the next unlocked task's fields (shared-core value shapes); propose; on confirmation `entry save-draft --entry-id r_abc --task-id <t_*> --note "<summary of what was mapped from the retro notes>" --data '{"values": {...}}'`; verify, then repeat for each remaining task in order, one confirmation each; close by reporting every task is drafted and the assignee completes them in the Upscaler app.
 
 ## References
 

@@ -109,7 +109,7 @@
 <form-lookup name="ff_FMEsPjTPKNKUz7KinDPsYCYRvYKA" title="Related Risks"
   required="false" placeholder=""
   guidance="Select any related risks already logged in the risk register. Linking related risks helps reviewers understand aggregated exposure."
-  multiple="true" filterParentId='["REGISTER_ID_HERE"]'></form-lookup>
+  multiple="true" filterParentId='[{"label":"Risk Register","key":"REGISTER_ID_HERE","value":"REGISTER_ID_HERE"}]'></form-lookup>
 
 <!-- TODO: replace RECORD_DEF_ID with an actual audit record definition id -->
 <form-recordlink name="ff_8PoorMtMTJYTdTlZtuGw8dtHpP9A" title="Related Audit Records"

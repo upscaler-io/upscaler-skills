@@ -19,6 +19,7 @@ Every skill follows the **MCP → CLI → setup** connection priority: prefer Up
 ## Repository layout
 
 - `skills/<skill-name>/SKILL.md` — the skill entry point. YAML frontmatter (`name`, `description`, optional `license`, `compatibility`, `metadata`) tells the agent when to trigger the skill; markdown body tells the agent how to execute. Supporting files (`scripts/`, `references/`, `assets/`, data) live alongside.
+- `skills/upscaler-author-asset/` is the one skill large enough to route its own detail, and the pattern is worth copying. Its `references/` are **numbered by load order**: `01-asset-types.md` and `07-validation-checklist.md` are always read (first and last), and the middle files load by asset category (`03` for documents, `02` + `04` for registers, `02` + `05` for records, `02` + `06` for courses). The routing table lives at the bottom of its `SKILL.md`; extend that table when adding a reference rather than inlining prose. Alongside it: `examples/sample-register-all-blocks.md` (one register exercising every block type) and `scripts/generate_field_id.py`, which mints and `--check`s base62 `ff_<28 chars>` field IDs. Field IDs must be base62: the platform's `select_values` regex silently drops a hyphenated key, so a hand-invented ID projects to nothing.
 - `references/` — **repo-root shared references** loaded on demand by every skill via relative path (`../../references/<file>.md`). Lives outside `skills/` because the validator iterates every directory under `skills/` and expects a `SKILL.md` in each; non-skill folders there would fail validation.
   - `references/upscaler-access.md` — MCP → CLI → setup connection priority, tool/command mapping, verbatim setup message. Update whenever the platform's tool surface changes.
   - `references/personas.md` — three target personas (compliance manager, engineer/PM, author) and how each skill calibrates output. Compliance manager is the primary persona; auditor is **not** a target persona.
@@ -40,7 +41,8 @@ Every skill follows the **MCP → CLI → setup** connection priority: prefer Up
 # Validate every skill in skills/
 python3 scripts/validate_skills.py
 
-# Validate a single skill directory
+# Validate a single skill directory (skips the three manifest lints;
+# only the argument-less run checks plugin.json / marketplace.json)
 python3 scripts/validate_skills.py skills/upscaler-author-asset
 
 # Scaffold a new skill from the template
@@ -51,13 +53,25 @@ python3 scripts/build_chatgpt_skills.py
 
 # Package the whole library as one installable bundle (output: dist/upscaler-skills.zip)
 python3 scripts/build_bundle.py
+python3 scripts/build_bundle.py --force   # package a spec-invalid tree anyway
 
 # Package Cursor rules and the Gemini context file (output: dist/editors/)
 python3 scripts/build_editor_bundles.py
-python3 scripts/build_editor_bundles.py cursor   # one target only
+python3 scripts/build_editor_bundles.py cursor   # one target only ("cursor" | "gemini")
 ```
 
-No build, no test runner, no package manager — the validator is the full pre-commit check.
+`build_bundle.py` runs the validator itself and refuses to package a failing tree without `--force`. The other two packagers do not validate, so run `validate_skills.py` before trusting their output.
+
+No build step, no package manager. The validator is the full pre-commit check; the only tests in the repo are the `upscaler-ask` evals below, which cost real money and are not part of that check.
+
+### Skill evals (`upscaler-ask` only)
+
+`skills/upscaler-ask/evals/` holds two harnesses over one shared 23-query set (`trigger_eval.json`: 15 positives across every answer category, 8 tricky near-miss negatives).
+
+- **Trigger accuracy**, via skill-creator's `run_eval.py`, measures the `description:` frontmatter in isolation by writing it into a throwaway slash-command alias. It is only meaningful *before* the skill is installed: with the real `upscaler-ask` loaded alongside its spokes, Claude picks the real skill over the test alias and every positive records a FAIL (the baseline run scored 8/23 for exactly this reason). Use it for pre-install description A/B testing, never to measure a live install. Skill-creator's `run_loop.py` inherits the same limitation.
+- **Tool-call cost**: `python3 skills/upscaler-ask/evals/tool_call_cost.py [--limit N] [--out DIR]` spawns real `claude -p` runs and records trigger rate, tool calls per query, duration, and cost. Budget roughly $15 to $25 and 45 to 75 minutes for the full 15 positives; use `--limit 3` to smoke-test. Tool calls per query is the efficiency signal (a list-and-count question should land near 6 to 10; a category consistently past 15 means its recipe is too vague and the agent is exploring).
+
+**Trap:** the cost harness defaults its output directory to `skills/upscaler-ask-workspace/`, a non-skill directory *inside* `skills/`. The validator iterates every directory there and demands a `SKILL.md`, so its presence makes `validate_skills.py` (and therefore CI and `build_bundle.py`) fail with `upscaler-ask-workspace: missing SKILL.md`. It is not gitignored either. Always pass `--out` somewhere outside `skills/`, or delete the workspace before validating.
 
 ## Authoring guidance for skills
 
@@ -78,7 +92,8 @@ No build, no test runner, no package manager — the validator is the full pre-c
 1. Run `python3 scripts/validate_skills.py`.
 2. If you changed the skill schema, update `docs/skill-template/`, the validator, `CONTRIBUTING.md`, and this file together, they drift silently otherwise.
 3. Add the skill to the table in `README.md`, the list in `AGENTS.md`, and the index in `llms.txt`.
-4. If the change is a **breaking rename or removal**, bump `.codex-plugin/plugin.json` version, add a "Breaking change" entry to `CHANGELOG.md`, and add a one-line breaking-change notice under the skill table in `README.md`.
-5. If the change touches the platform connection pattern (new MCP tools, new CLI commands, new auth flow), update `references/upscaler-access.md` once rather than editing each skill.
-6. If you added a new spoke skill, also update the routing table in `skills/upscaler-ask/SKILL.md` so the hub knows when to hand off to it.
-7. New skills ship through the bundled `upscaler-skills` plugin automatically (because `.claude-plugin/marketplace.json` uses `source: "./"`). No marketplace edit needed unless you're splitting a skill into its own plugin.
+4. Log the change under `[Unreleased]` in `CHANGELOG.md`. If the change is a **breaking rename or removal**, mark it as a "Breaking change" entry and add a one-line breaking-change notice under the skill table in `README.md`.
+5. **Releasing.** `.github/workflows/package.yml` fails any `v*` tag whose version disagrees with `.codex-plugin/plugin.json` (the only manifest carrying semver), so bump that version on **every** release, not just breaking ones, and promote the `[Unreleased]` entries under the new version before tagging.
+6. If the change touches the platform connection pattern (new MCP tools, new CLI commands, new auth flow), update `references/upscaler-access.md` once rather than editing each skill.
+7. If you added a new spoke skill, also update the routing table in `skills/upscaler-ask/SKILL.md` so the hub knows when to hand off to it.
+8. New skills ship through the bundled `upscaler-skills` plugin automatically (because `.claude-plugin/marketplace.json` uses `source: "./"`). No marketplace edit needed unless you're splitting a skill into its own plugin.
