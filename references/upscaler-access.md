@@ -192,10 +192,20 @@ On the MCP tier, prefer `upscaler_search_documents({ parent_id: "<root>", … })
 
 Every fact the skill emits about an Upscaler item must cite it. Two acceptable forms:
 
-- Markdown link: `[<title>](upscaler:<asset_id>)`, agent-readable, click-through opens the platform.
+- Markdown link: `[<title>](upscaler:<asset_id>)`, agent-readable and host-agnostic. `upscaler:` is a citation convention, not a registered URI scheme: clicking it opens nothing. It stays the default because the same skill runs against prod, staging, and local workspaces whose UI hosts differ, and because the bare ID resolves anywhere (`upscaler get <id>`, the app's search palette).
 - Inline ID: `<title> (upscaler:<asset_id>)`, for prose where a link would be awkward.
 
 Never fabricate an asset ID. If MCP/CLI returned nothing, say so; never invent.
+
+### Resolving a citation to a clickable URL
+
+When the user asks for links they can click or forward (an auditor pack, an email), render every asset link through the universal resolver route:
+
+```
+https://app.stg.upscaler.app/asset/<asset_id>
+```
+
+One shape for every ID prefix (`d_`, `rg_`, `i_`, `r_`, `rd_`, `to_`, …): the platform resolves the ID to the correct page and view for the signed-in reader. Do not hand-build per-type paths (`/document/<id>`, `/item/<id>`, `/record/<id>`, or any `_definition` designer path), and never derive a link from `server_url` in `upscaler status`; that is the API/MCP endpoint, not the web app. Older workspace content may embed hosts from a retired app split (`designer.`, `core.`, `admin.` subdomains) or hand-built per-type paths; do not copy either into new citations.
 
 **Search results are embedding chunks, not assets.** A hit's top-level `id` is the *chunk* id (it will not resolve via `upscaler get`); cite the **`asset_id`**. Use the promoted top-level `asset_title`; it is populated from raw metadata even when `include_metadata` is false. Request raw metadata only for fields not already promoted. One query returns several chunks of the same asset, so **de-duplicate by `asset_id`** before citing. Hybrid-search `score` is a reciprocal-rank-fusion value (often ~0.01–0.03), not a cosine similarity — treat it as ordinal ranking, never a cutoff threshold.
 

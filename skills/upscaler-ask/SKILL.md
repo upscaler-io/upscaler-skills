@@ -226,7 +226,7 @@ Citations:
 4. **Stay inside the compliance-system scope** when the question is compliance-scoped. Scope hits to the relevant management-system root (ISMS for ISO 27001; a QMS / EMS / DORA program has a different root — discover it, don't hard-code "ISMS"). Prefer scoping the search with `--parent-id <root>` / `parent_id`; `hierarchy <id>` returns descendants, not ancestors, so don't use it to check a hit's lineage.
 5. **Route before answering** when the intent is workflow-shaped. Don't half-build an evidence pack — hand off to the specialist.
 6. **One tier per session.** Pick MCP or CLI at the start and stay on it; mixing produces inconsistent schemas.
-7. **Cite by `upscaler:<asset_id>`** so the user can resolve via the platform UI or `upscaler get <id>`.
+7. **Cite by `upscaler:<asset_id>`** so the user can resolve via the platform UI or `upscaler get <id>`. These citations are not clickable links; when the user asks for URLs they can click or forward, resolve each ID per "Resolving a citation to a clickable URL" in the shared access reference instead of guessing hosts or paths.
 8. **Answer from the published lane, which is the default.** A definition asset carries a designer working copy and a published snapshot under one id; quoting the designer copy attributes text to the organisation that no reader has been shown. So keep the default rather than reaching for `--lane designer` to "get more". When a read comes back with a null `title` and an empty body, that is the published lane saying nothing has been published under that id: confirm with a `--lane designer` re-read and report the asset as **drafted but not yet published**, never as empty or missing.
 
 ## Anti-patterns
