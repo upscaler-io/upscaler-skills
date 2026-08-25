@@ -140,7 +140,7 @@ upscaler --profile <p> --json get <r_*>
 
 (MCP: `upscaler_get_asset({asset_id:"<r_*>", format:["json"]})`.) Match the `t_*` under `tasks[]`, confirm its `status` shows **DRAFT** (never completed; agents cannot complete), and diff its `values` against the payload you sent. The values are **flat for that task** (`tasks[].values.<key>`), not nested under the task-definition id. Read the record `title` and `status` from the same payload (the record itself stays PENDING until a human completes its tasks). Apply the read-back tolerances from the shared core. Cite the result as `[<record title>](upscaler:<r_*>)`.
 
-**`--draft` is not the draft read.** That flag requests the unpublished working copy of a *definition* (meaningful on an `rd_*` schema read); it never returns a task's staged values. A HITL task draft is read through the record JSON above.
+**`--lane designer` is not the draft read.** That flag (and `--draft`, its deprecated spelling) selects the designer working copy of a *definition*, meaningful on an `rd_*` read; it never returns a task's staged values. A HITL task draft is read through the record JSON above. The two senses of "draft" are unrelated: one is an unpublished definition, the other is staged values awaiting a human.
 
 **Do not verify a draft with `list entries --include-values`.** That list reports *committed* values only, so it keeps showing the record's pre-draft state (usually empty) until a human completes the task. Reserve the values-bearing list for records a human has already completed, and never pass `--resolve-labels` with an `rd_*` (the per-task schema has no flat field list, so keys silently come back unrelabelled).
 

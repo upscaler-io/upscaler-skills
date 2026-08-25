@@ -142,6 +142,7 @@ If script execution is not available in your environment, produce the ID inline 
 
 ## Anti-patterns (do NOT do these)
 
+- Sourcing a read-modify-write from the **published** lane. `get <id>` defaults to `--lane published`, the copy viewers read, while content writes land on the **designer** copy. Snapshot with `--lane designer`, edit that, and verify against that. Writing a published body back silently discards every unpublished designer edit, with no error and no version check. See `references/03-document-authoring.md`.
 - Skipping heading levels (H2 → H4) or using unnumbered `##`/`###` in documents.
 - Inventing new `<form-*>` names (only the 17 above are recognised; the platform registry also carries a `form-textarea` — no hyphen — legacy entry, but it is not markdown-authorable and must never be emitted).
 - Hand-crafting field names like `ff_risk_owner` or `risk-owner` — must be a fresh 28-char nanoid.

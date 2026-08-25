@@ -6,7 +6,7 @@ Shared reference loaded on demand by every Upscaler skill. Defines the connectio
 
 Every Upscaler skill follows the same three-tier priority. Pick the first tier that's available; do **not** mix tiers in one operation.
 
-1. **MCP server (preferred)** — if the agent's tool list contains any tool whose name matches `upscaler_*` or ends in `__upscaler_*` (e.g. `mcp__claude_ai_Upscaler__upscaler_search_documents`), call those tools directly. Lowest friction, no shell, structured payloads. Where a tool exposes `response_format`, keep the default `json` for structured reads and use `markdown` only for short human-readable output. `upscaler_list` has no `response_format`; `upscaler_get_asset` instead uses `format: ["json"|"schema"|"markdown"]` (a list).
+1. **MCP server (preferred)** — if the agent's tool list contains any tool whose name matches `upscaler_*` or ends in `__upscaler_*` (e.g. `mcp__claude_ai_Upscaler__upscaler_search_documents`), call those tools directly. Lowest friction, no shell, structured payloads. Where a tool exposes `response_format`, keep the default `json` for structured reads and use `markdown` only for short human-readable output. `upscaler_list` has no `response_format`; `upscaler_get_asset` instead uses `format: ["json"|"schema"|"markdown"]` (a list) plus `lane: "published"|"designer"`, which picks which copy of a definition asset to read (see "Reads name a lane" below).
 2. **`upscaler` CLI (fallback)** — if no MCP tools are present but the `upscaler` binary is on `$PATH` (test with `command -v upscaler`), use it. Always pass `--json` for parseable output, and check `upscaler status` to confirm the session is authenticated before running queries.
 3. **Setup prompt (last resort)** — if neither is available, print the setup message in the section below and stop. Do **not** attempt the workflow with neither connection.
 
@@ -34,7 +34,7 @@ The Upscaler MCP server and CLI expose the same surface under different shapes. 
 | Hybrid semantic+keyword content search (documents AND register entries) | `upscaler_search_documents` | `upscaler --json search "<text>" --limit 5 [--parent-id <id>] [--published-after <ISO>] [--include-metadata]` |
 | Keyword node search by title/description (excludes task/release/todo) | `upscaler_search_nodes` | *(no exact CLI equivalent — `asset find` is a different op, see below)* |
 | Wildcard title/description lookup over the asset tree | *(no MCP equivalent)* | `upscaler --json asset find --title "<pattern>" [--description <pat>] [--type <raw enum>]` |
-| Get one asset                          | `upscaler_get_asset`           | `upscaler --json get <asset-id>` (use `--format markdown\|schema`) |
+| Get one asset                          | `upscaler_get_asset`           | `upscaler --json get <asset-id>` (add `--format json,markdown,schema` and `--lane designer\|published`) |
 | Get an asset's descendant hierarchy    | `upscaler_get_asset_hierarchy` | `upscaler --json hierarchy <asset-id> --depth 3`                   |
 | List definitions / entries / todos     | `upscaler_list`                | `upscaler --json list definitions` / `list entries --definition-id <id>` / `list todos` |
 | List entries with field values         | `upscaler_list({ type: "entries", include_values: true })` or `select_values: ["ff_…"]` | `upscaler --json list entries --definition-id <id> --include-values [--resolve-labels]` or `--select-value "<Label or ff_…>"` |
@@ -43,7 +43,7 @@ The Upscaler MCP server and CLI expose the same surface under different shapes. 
 | Create / update / delete an asset      | `upscaler_manage_asset`        | `upscaler asset create --type <type> --data @file.json` / `asset update --asset-id <id> --data …` / `asset delete --asset-id <id>` |
 | Create / update an entry (record/item) | `upscaler_manage_entry`        | `upscaler entry create --definition-id <id> --data @file.json` / `entry update --entry-id <id> --data …` |
 | Save a record **task draft** (the only agent path to a task) | `upscaler_manage_entry({operation:"save_task_draft", entry_id:"<r_*>", task_id:"<t_*>", data:{values, note}})` — there is **no** standalone `upscaler_save_task_draft` MCP tool | `upscaler entry save-draft --task-id <t_*> --note "<summary>" --data '{"values":{…}}'` (supports `--dry-run`) |
-| Read a record's staged task draft      | `upscaler_get_asset({asset_id:"<r_*>", format:["json"]})` | `upscaler --json get <r_*>` — read `tasks[]` for `status: DRAFT` and that task's `values`. **Not** `--draft`, which requests the unpublished working copy of a *definition* (meaningful on an `rd_*` schema read) and is not a task-draft read. |
+| Read a record's staged task draft      | `upscaler_get_asset({asset_id:"<r_*>", format:["json"]})` | `upscaler --json get <r_*>`, reading `tasks[]` for `status: DRAFT` and that task's `values`. **Not** `--lane designer` (or its deprecated spelling `--draft`), which selects the designer copy of a *definition* and is not a task-draft read. |
 | Manage a todo                          | `upscaler_manage_todo`         | `upscaler todo {create,update,close,reopen,delete}`                |
 | Manage an automation                   | `upscaler_manage_automation`   | `upscaler automation {list,get,runs,create,update,enable,disable,run,delete}` |
 | Manage a compliance framework          | `upscaler_manage_framework`    | `upscaler framework {list-installed,get-installed,list-contributions,list-requirement-contributions,list-test-bindings,bind,update-binding,remove-binding,set-test-binding,clear-test-binding,set-test-override,reset-test-override,reset-overrides,add-test,remove-test,evaluate,sweep}` |
@@ -67,9 +67,24 @@ Every value an agent writes to a record task or a register item lands as a **dra
 
 Verification differs by container, because a draft does not always touch the values a read returns. See the read-back rules in [`form-filling.md`](form-filling.md).
 
+### Reads name a lane (designer vs published)
+
+Every **definition-backed** asset exists twice under one id: the **designer** working copy that authors edit, and the **published** snapshot that viewers read. One id, two bodies, and until a designer clicks Publish in the Upscaler app they diverge.
+
+- **The default is `published` on every tier.** MCP `upscaler_get_asset({asset_id, lane})`, CLI `upscaler get <id> --lane designer|published`, both defaulting to published. The answer always echoes the copy it came from at `json.lane`, so a read never leaves the lane ambiguous.
+- **Two lanes:** `d_`/`doc_`, `rg_`, `rd_`, `cd_`. **One lane:** instances (`r_`/`rec_`, `i_`, `to_`) have nothing to publish, so both selectors return the same row and `lane` is informational.
+- **Use `designer` whenever the result feeds a write back.** Content mutations (`set*DefinitionValues`, the `asset update-content` family) all target the designer copy. Reading published, editing, and writing back silently discards every unpublished designer edit, which is the one lane mistake that destroys work rather than merely confusing a read.
+- **Use `published` to answer a question about what people actually see.** A compliance answer sourced from the designer copy may quote text no reader has been shown.
+- **A never-published asset answers the published lane with a null `title` and an empty body**, while still echoing `lane: "published"`. That is not an error and not a permission problem: nothing has been published under that id yet. Retry with `designer`. (Observed on a `d_*`; the same envelope defaults apply to the other lane-bearing types.) Treat "the published read came back empty" as a prompt to check the lane before concluding the asset is empty or missing.
+- **`draft` is the deprecated boolean spelling** of `lane: designer`, still live on the REST surface and as the CLI's `--draft`. Prefer `--lane`. The CLI now rejects `--lane published --draft` rather than quietly answering with the designer copy; the MCP tool never exposed `draft` at all.
+
+`--lane` is a *definition* selector. It never reads a HITL task or item draft: those are staged values on an instance, read through the plain record or entry JSON (see the mapping row above).
+
+**Version note.** The `--lane` flag and comma-separated `--format` need a CLI newer than 0.4.0. On an older build they fail loudly as a Click usage error (exit 2, "no such option"), never silently, so the fallback is to upgrade the CLI rather than to work around the flag. The published-by-default read is a platform behaviour and applies on both tiers regardless of CLI version.
+
 ## Asset ID prefixes
 
-Both MCP and CLI auto-detect asset kind from the ID prefix. (`upscaler get` routes `d_`/`doc_`/`rg_`/`rd_`/`r_`/`rec_`/`i_`/`cd_` plus `to_`/`g_`/`t_`; `cr_`, `tg_`, `auto_`, and `td_` are not gettable by prefix, and `cl_` returns a pointer to its parent `cd_`.) Use this table when reasoning about a hit returned by search. Note the definition-vs-instance split: a *definition* is the template/schema; an *instance* is one filled-in row or record created from it. Tests, schema reads, and authoring target definitions; status updates and "complete this" actions target instances.
+Both MCP and CLI auto-detect asset kind from the ID prefix. (`upscaler get` routes `d_`/`doc_`/`rg_`/`rd_`/`r_`/`rec_`/`i_`/`cd_`/`to_` as assets, and `g_`/`t_` to their own endpoints; `cr_`, `tg_`, `auto_`, `bd_`, and `td_` are not gettable by prefix, and `cl_` returns a pointer to its parent `cd_`.) Use this table when reasoning about a hit returned by search. Note the definition-vs-instance split: a *definition* is the template/schema; an *instance* is one filled-in row or record created from it. Tests, schema reads, and authoring target definitions; status updates and "complete this" actions target instances.
 
 | Prefix         | Kind        |
 | -------------- | ----------- |
@@ -126,9 +141,22 @@ Before any create/update on an entry or asset, **inspect the schema** so the pay
 
 This applies even when the user supplies the payload — silent rejections are worse than a noisy preflight.
 
-## Batched MCP formats
+Lane rarely matters for this preflight: `rg_*` and `i_*` schema reads are lane-independent, so the default is always right when the write targets an **entry**. The exception is an `rd_*`, whose per-task schema does honour the lane; read it with `--lane designer` when the record definition has unreleased task edits you need to write against. When the write targets a **definition body** rather than an entry, the `json` read that carries `values` must use `--lane designer`, or the edit is composed against the wrong copy.
 
-`upscaler_get_asset` accepts multiple formats in one call: `format: ["json", "schema", "markdown"]`. Prefer one batched call over three round-trips when you need overview, schema, and rendered content together.
+## Batched formats
+
+Both tiers take several formats in one call, so prefer one batched read over three round-trips when you need overview, schema, and rendered content together:
+
+- **MCP:** `upscaler_get_asset({ asset_id, format: ["json", "schema", "markdown"] })`.
+- **CLI:** `upscaler --json get <id> --format json,schema` (comma-separated), or repeat the flag (`--format json --format markdown`). In human mode the CLI labels each section only when more than one is requested, so a single `--format markdown` still prints the bare body and stays pipeable.
+
+What each format returns:
+
+- **`json`** is the same envelope for every type: `{asset_id, type, lane, title, description, values}` plus type-specific extras. `title`, `description`, and `values` are always present (null when the type has none), so a caller can read them without branching on type. On a `cd_*` the body lives per lesson at `json.lessons[].values`, so the top-level `values` is null by design.
+- **`markdown`** is `null` when the type has no rendered body at all, and `""` when the body is genuinely empty. Documents, registers, records, record definitions, courses, and register items render; **todos return `null`**.
+- **`schema`** is the field list, and `null` for types that have no field schema (documents, courses, todos). On an `rd_*` it is a per-task list, not a flat `fields` array, and it is the **only** schema read that honours the lane. `rg_*` and `i_*` schemas are lane-independent: both selectors return the same field list.
+
+A `null` and an empty string mean different things here on purpose: `null` is "this type has no such representation", `""` is "this representation is empty". Do not treat them as interchangeable when deciding whether a write landed.
 
 ## Listing entries with values (avoid N+1)
 
@@ -211,5 +239,9 @@ Tailor the agent-specific install hint to the host if known (Claude Code, Codex,
 - **`--profile` is a global option accepted anywhere.** Both `upscaler --profile dev login` and `upscaler login --profile dev` select the same profile; prefer the first style in examples.
 - **`$UPSCALER_SERVER` overrides the active profile's saved server URL.** If a user runs `--profile dev login` and the request goes to the wrong host, check whether `UPSCALER_SERVER` is exported in their shell.
 - **Read-only skills must avoid write actions, not every `upscaler_manage_*` tool.** `upscaler_recover_item` is always a write. `upscaler_manage_framework`, `upscaler_manage_automation`, `upscaler_manage_file`, and `upscaler_manage_comment` have mixed scopes: their list/get actions are reads, while create/update/set/evaluate/sweep/presign/add/edit/delete actions are writes. `framework evaluate` and `framework sweep` re-run and persist evaluation; read the latest result from `get_installed` instead.
+- **Never read one lane and write to the other.** Content writes land on the **designer** copy. Composing an edit from a published read and writing it back discards every unpublished designer change, with no error and no version check. When a read feeds a write, pass `--lane designer` on the read.
+- **An empty published read is a lane signal, not an empty asset.** A never-published definition asset answers the default lane with a null `title` and an empty body. Check `json.lane` and retry with `designer` before reporting the asset as blank or missing.
+- **A todo read is an asset read now.** `get <to_*>` routes to the asset endpoint like every other prefix, so its fields arrive under `data.json.*` (a bookmark at `data.json.extra.bookmarkUrl`) rather than bare on `data`, and it honours `--format` and `--lane`. The CLI's `--type todo` still reaches the old bare-object endpoint for one release; it is deprecated, so do not reach for it in new work.
+- **`--format markdown` returning `null` is not the same as `""`.** `null` means the type renders no markdown at all (todos), `""` means the body is empty. Only the second is evidence about content.
 - **`list` flag gotchas:** `list definitions` and `list entries` both support `--limit`/`--offset`. `list todos` has no `--status`. `todo update` has `--title`/`--assignee`/`--due` but **no** `--description` (the MCP tool can update description through its data payload).
 - **Publishing is not available via MCP.** For publish/release operations, direct the user to the Upscaler web app.

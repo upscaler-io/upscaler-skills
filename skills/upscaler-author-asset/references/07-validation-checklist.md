@@ -40,12 +40,12 @@ Run this checklist **before returning** any generated asset definition. Every it
 
 These apply on top of the document checks whenever the write targets an existing `d_*` rather than a create. Full procedure in `03-document-authoring.md` → "Updating an existing document".
 
-19a. **Pre-write body captured** (`upscaler get <d_*> --json`, body extracted). Writes replace the shared working copy with no version check; note `--format json` returns markdown, not the Slate tree, and the CLI can never read the published body — only the web UI shows it.
+19a. **Pre-write body captured from the DESIGNER lane** (`upscaler --json get <d_*> --lane designer`, body extracted). The default lane is `published`, the copy viewers read, not the copy the write replaces; snapshotting published and writing it back discards unpublished designer edits. Writes still replace the working copy with no version check, and `--format json` returns markdown, not the Slate tree.
 19b. **Fetched YAML frontmatter stripped** from the body being written. Writing it back renders it as visible body text.
 19c. **Broken bold runs normalised**: every `**…: **` (space inside the closing marker, as the platform serialiser emits) rewritten to `**…:** ` before writing back, else those runs become literal `**` glyphs. Check `grep -E '\*\*[^*]+ \*\*'` is clean (ignore `**A** | **B**` table false positives).
-19d. **Concurrent-edit check done**: re-fetch immediately before writing and hash-compare bodies with the `version:` line stripped (it is a fetch timestamp, not a content version).
-19e. **Post-write verification is a DIFF of live vs intended PLUS a web-UI render check.** The CLI read-back shows nested lists flattened/merged even when they are stored and rendered correctly — do not "repair" based on CLI output alone, and do not trust grep-for-added-text as verification.
-19f. **Publish step accounted for.** The write leaves the document in "unpublished changes" state; viewers see the old version until a designer clicks Publish in the editor. Tell the user this explicitly.
+19d. **Concurrent-edit check done**: re-fetch the designer lane immediately before writing and hash-compare bodies. No line-stripping needed any more: `version:` is the publish datetime, stable across reads and absent when nothing is published, so an unchanged working copy hashes identically twice.
+19e. **Post-write verification is a DIFF of live vs intended, on the DESIGNER lane, PLUS a web-UI render check.** Diffing the published lane reads as a failed write, because the change does not reach it until a human publishes. The CLI read-back also shows nested lists flattened/merged even when they are stored and rendered correctly — do not "repair" based on CLI output alone, and do not trust grep-for-added-text as verification.
+19f. **Publish step accounted for.** The write leaves the document in "unpublished changes" state; viewers see the old version until a designer clicks Publish in the editor. Tell the user this explicitly. You can now show them exactly what publishing would release by diffing the two lanes (`--lane designer` against `--lane published`); publishing itself is still a human action in the app.
 
 ## Register checks
 

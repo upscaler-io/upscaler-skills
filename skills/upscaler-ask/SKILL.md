@@ -30,7 +30,7 @@ Record the chosen tier once per session and stay on it. Do not mix tiers in one 
 Match this before anything else. If the prompt contains a bare Upscaler ID (`to_`, `d_`, `rg_`, `rd_`, `r_`, `i_`, `cd_`, `cl_`, `t_`, `g_` prefix) with a look/review/check/show/open verb, it is a workspace lookup regardless of surrounding vocabulary:
 
 1. `upscaler --json get <id>` — the prefix routes automatically; no `--type` needed except for members (unprefixed ids).
-2. Follow what the object references. A todo (`to_*`) commonly links documents, records, or a change request in its `description` — fetch those too, since "review todo X" almost always means "assess the state of what the todo asks for". Todo discussion lives at `upscaler comment list --asset-id <to_> --asset-type todo` (there is no `todo get` subcommand; reads go through the top-level `get`).
+2. Follow what the object references. Every gettable prefix, todos included, answers with the asset envelope, so read fields at `.data.json.<field>` (not bare `.data.<field>`). A todo (`to_*`) commonly links documents, records, or a change request in its `description`, and a bookmark at `.data.json.extra.bookmarkUrl` — fetch those too, since "review todo X" almost always means "assess the state of what the todo asks for". Todo discussion lives at `upscaler comment list --asset-id <to_> --asset-type todo` (there is no `todo get` subcommand; reads go through the top-level `get`).
 3. Answer with status, due date vs today, assignees, and an assessment of whether the referenced work is done — with citations.
 4. If the follow-up implies mutation ("draft the updates", "apply the changes", "complete the record"), route to the matching write-capable spoke (`upscaler-author-asset` for document/definition edits, `upscaler-run-record` for `r_*` tasks, `upscaler-write-entry` for `i_*` rows). Re-evaluate routing on EVERY turn — a session that starts as a lookup often turns into a write workflow two prompts later, and the spoke owns the write-safety rules that this skill does not carry.
 
@@ -227,6 +227,7 @@ Citations:
 5. **Route before answering** when the intent is workflow-shaped. Don't half-build an evidence pack — hand off to the specialist.
 6. **One tier per session.** Pick MCP or CLI at the start and stay on it; mixing produces inconsistent schemas.
 7. **Cite by `upscaler:<asset_id>`** so the user can resolve via the platform UI or `upscaler get <id>`.
+8. **Answer from the published lane, which is the default.** A definition asset carries a designer working copy and a published snapshot under one id; quoting the designer copy attributes text to the organisation that no reader has been shown. So keep the default rather than reaching for `--lane designer` to "get more". When a read comes back with a null `title` and an empty body, that is the published lane saying nothing has been published under that id: confirm with a `--lane designer` re-read and report the asset as **drafted but not yet published**, never as empty or missing.
 
 ## Anti-patterns
 

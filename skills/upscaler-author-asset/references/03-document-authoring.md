@@ -168,22 +168,31 @@ This policy shall be reviewed every 12 months, or sooner following a material ch
 
 ## Updating an existing document (read-modify-write)
 
-Revising a live `d_*` document is **higher risk than creating a new one**: the write replaces the whole body, so parser limitations damage content you did not touch. Four platform behaviours drive the procedure below (all verified 2026-08-10 against production):
+Revising a live `d_*` document is **higher risk than creating a new one**: the write replaces the whole body, so parser limitations damage content you did not touch. Six platform behaviours drive the procedure below (items 4 to 6 verified 2026-08-10 against production; the lane and `version:` behaviour in items 1 to 3 verified 2026-08-25):
 
-1. **Markdown writes land in the document's shared WORKING COPY, silently.** Viewers keep seeing the last published version until someone clicks **Publish** in the web editor — but `get` AND `get --draft` both return the working copy, so **the CLI cannot show you what viewers currently see**; only the web UI document page shows the published body ("This asset contains unpublished changes" banner = they diverge). Two consequences: a CLI write is not immediately viewer-visible (safer than it looks), and CLI-based verification can never prove what is published (blinder than it looks). Any designer's UI session shares the same working copy your write just replaced.
-2. **Last write wins, and there is no usable version signal.** Documents accept no `expectedVersion`, and the `version:` field in the fetched frontmatter is a **fetch timestamp, not a content version** — it changes on every `get`. To detect concurrent edits, hash the body with the `version:` line stripped and compare before writing.
-3. **`get` returns YAML frontmatter that must NOT be written back.** The platform manages frontmatter itself; if the fetched frontmatter is included in the write, it is rendered as visible body text (a junk `## assetId: …` block under the title). Strip everything up to and including the closing `---` of the leading YAML block.
-4. **Nested lists survive the WRITE but not the CLI READ-BACK.** The deserialiser stores nesting correctly (list-item → [paragraph, nested list]) and the web UI renders it properly; it is the read-side markdown serialiser that flattens nesting and prints parent+first-child merged on one line (`* Parent* Child`). So a corrupted-looking `get` after a nested-list write does NOT prove the stored tree is damaged — check the web UI before attempting any repair. It DOES mean round-trip editing is lossy in one specific way, see 5.
-5. **Bold runs serialised as `**text **` (space inside the closing marker) die on round-trip.** The old serialiser emits that form; CommonMark cannot re-parse it as bold, so a fetched-and-rewritten body turns those runs into literal `**` glyphs in the document. Before writing a fetched body back, normalise every `**…: **` to `**…:** ` (move the space outside) — and grep the body for `\*\*[^*]+ \*\*` (excluding table-row false positives like `**A** | **B**`) until it is clean.
+1. **Markdown writes land in the document's shared WORKING COPY (the designer lane), silently.** Viewers keep seeing the last published version until someone clicks **Publish** in the web editor. **A read must therefore name its lane, and the default is the wrong one for this procedure:** `get <d_*>` defaults to `--lane published` and returns what viewers see, while the body you are about to replace is `--lane designer`. Snapshot and edit from `designer`; a read-modify-write sourced from the published lane silently discards every unpublished designer edit. Any designer's UI session shares the same working copy your write replaces.
+2. **Both lanes are readable, so divergence is detectable without the web UI.** Fetch the body at each lane and compare: identical means nothing is pending, different means unpublished changes exist (the same state the web editor flags with "This asset contains unpublished changes"). A never-published document answers the published lane with `title: null` and an empty body, which is a lane signal and not a missing document. What the CLI still cannot do is publish; that stays a human action in the app.
+3. **Last write wins, and `version:` is not a concurrency signal.** Documents accept no `expectedVersion`. The frontmatter `version:` is the page's **publish datetime**, stable across reads and omitted entirely when nothing has been published, so it says nothing about the working copy you are editing. To detect a concurrent designer edit, hash the designer-lane body and compare immediately before writing. (This field used to be stamped with the fetch time, which made every read hash differently and forced callers to strip the line before comparing. That stripping is no longer needed.)
+4. **`get` returns YAML frontmatter that must NOT be written back.** The platform manages frontmatter itself; if the fetched frontmatter is included in the write, it is rendered as visible body text (a junk `## assetId: …` block under the title). Strip everything up to and including the closing `---` of the leading YAML block.
+5. **Nested lists survive the WRITE but not the CLI READ-BACK.** The deserialiser stores nesting correctly (list-item → [paragraph, nested list]) and the web UI renders it properly; it is the read-side markdown serialiser that flattens nesting and prints parent+first-child merged on one line (`* Parent* Child`). So a corrupted-looking `get` after a nested-list write does NOT prove the stored tree is damaged — check the web UI before attempting any repair. It DOES mean round-trip editing is lossy in one specific way, see 6.
+6. **Bold runs serialised as `**text **` (space inside the closing marker) die on round-trip.** The old serialiser emits that form; CommonMark cannot re-parse it as bold, so a fetched-and-rewritten body turns those runs into literal `**` glyphs in the document. Before writing a fetched body back, normalise every `**…: **` to `**…:** ` (move the space outside) — and grep the body for `\*\*[^*]+ \*\*` (excluding table-row false positives like `**A** | **B**`) until it is clean.
 
 Procedure:
 
 ```bash
 # 1. Snapshot the current body FIRST — this is your only rollback source.
+#    --lane designer is REQUIRED: the default published lane returns what
+#    viewers see, and writing that back drops any unpublished designer edits.
 #    (No agent surface returns the raw Slate tree: --format json carries the
 #    markdown serialisation too, so the snapshot inherits the same read-back
 #    lossiness. It still lets you restore everything the serialiser preserves.)
-upscaler get <d_*> --json > snapshot.json   # body at .data.json.text
+upscaler --json get <d_*> --lane designer > snapshot.json
+#    Body at .data.json.values (the uniform envelope key); .data.json.text is
+#    the same string under the document-specific name.
+
+# 1b. Optional: see whether the working copy already diverges from what
+#     viewers read, so the user knows what publishing would release.
+upscaler --json get <d_*> --lane published > published.json
 
 # 2. Strip the leading YAML frontmatter block from the body
 #    (drop through the closing '---').
@@ -197,11 +206,15 @@ grep -cE '^\s+[-*] ' body.md
 # 4. Apply edits with unique-anchor replacement (assert each old string occurs
 #    exactly once), not wholesale regeneration.
 
-# 5. Re-fetch immediately before writing; hash-compare (version: line stripped)
-#    against the body you edited to rule out a concurrent edit.
+# 5. Re-fetch the DESIGNER lane immediately before writing and hash-compare
+#    against the body you edited, to rule out a concurrent edit. No need to
+#    strip version: any more — it is a stable publish date, not a fetch stamp,
+#    so an unchanged working copy now hashes identically across reads.
 
-# 6. Write, then VERIFY BY DIFF: fetch the live body and diff it against what
-#    you intended to store. Do not verify by grepping for your new text —
+# 6. Write, then VERIFY BY DIFF: re-fetch --lane designer (the lane the write
+#    landed on) and diff it against what you intended to store. The published
+#    lane will NOT show the change until a human publishes, so diffing it
+#    reads as a failed write. Do not verify by grepping for your new text —
 #    presence checks confirm what you added and are blind to what the parser
 #    destroyed elsewhere in the document.
 ```
@@ -338,7 +351,7 @@ Body prose.
 asyncio.run(main())
 ```
 
-Verify with `upscaler get <asset_id> --format markdown` — image attachments round-trip as `![<name>](<name>)`, file attachments as `[📎 <name>](<name>)`. If either renders as `![]()` the uid did not resolve; re-check the presign `asset_id` and the S3 POST response.
+Verify with `upscaler get <asset_id> --lane designer --format markdown` (the lane the upload landed on; the published lane will not show it until someone publishes) — image attachments round-trip as `![<name>](<name>)`, file attachments as `[📎 <name>](<name>)`. If either renders as `![]()` the uid did not resolve; re-check the presign `asset_id` and the S3 POST response.
 
 ### Markdown serialisation reference
 
