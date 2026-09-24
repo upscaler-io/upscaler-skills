@@ -157,6 +157,7 @@ Then report the flow position: which tasks are drafted awaiting review, which ta
 - **Inventing `td_*` / `t_*` ids.** Task definition ids come from the `rd_*` schema; task instance ids come from the created record. Never fabricate either.
 - **Drafting later tasks blind.** Read the values already stored in earlier tasks first; a record is one narrative, and contradictory tasks read as fabricated evidence.
 - **Rolling a periodic review forward without re-performing it.** Copying the previous instance's answers and asserting "unchanged" without fetching the sources is fabricated evidence. Perform the documented activity (Step 4), or leave the field to the user and say what was not checked.
+- **Filling a `textarea` with one long paragraph.** Textareas render Markdown unless the schema says `format: "plain"` (a missing `format` still means Markdown). Findings, observations, and narratives read best as lists with bold lead-ins and blank-line paragraphs; follow the shared core's "Markdown in `textarea` fields".
 - **Mutating without confirmation, or "sample data" shortcuts.** Same contract as `upscaler-write-entry`: propose, confirm, then write.
 
 ## Examples

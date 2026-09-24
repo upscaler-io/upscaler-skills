@@ -50,7 +50,8 @@ If a reference cannot be resolved (empty target register, no matching member), l
 
 | Field type | Value to write |
 | --- | --- |
-| `text`, `textarea` | A string. Keep generated prose short; trim user content to the UI's 18,000-character limit. |
+| `text` | A single-line string. Keep generated prose short. |
+| `textarea` | A string, trimmed to the UI's 18,000-character limit. **Markdown is on by default**: unless the schema says `format: "plain"`, write readable Markdown (see below). A missing `format` means Markdown, since older servers do not report it. This applies to `textarea` columns inside a `table` too. |
 | `number` | A number. Honour schema `min` / `max`; generated samples should be plain integers because precision and step are not exposed. |
 | `date` | `YYYY-MM-DD`, including week/month/quarter/year-style UI pickers. |
 | `time` | `HH:mm:ss` in 24-hour time; bare `HH:mm` is invalid. |
@@ -62,6 +63,18 @@ If a reference cannot be resolved (empty target register, no matching member), l
 | `record_link` | `{"value": "r_*", "label": "<record title>"}`, or an array of these when `multiple` — same shape as `lookup`; read `multiple` from the schema. |
 | `frameworkRequirementPicker` | Normally omit. When explicitly requested by an OWNER/ADMIN, write an array of `{"frameworkId": "...", "requirementId": "..."}` using real installed-framework ids. |
 | `file_upload` | Use the owning skill's file workflow (`entry update --file` / `entry upload-file` / presign-and-POST). Never write a hand-built file item without a real uploaded `uid`. On **records**, pass `--task-id`: the CLI reads the task's current values, splices the uploaded file in, and sends the result through `saveTaskDraft`, so the attachment lands in the draft like any other value. |
+
+### Markdown in `textarea` fields
+
+The web app renders a Markdown `textarea` as formatted text, so one long run-on paragraph reads as a wall of text. Structure anything longer than two sentences:
+
+- Break distinct points into a bullet list (`- `) or, for ordered steps, a numbered list (`1. `).
+- Use short `**Bold lead-ins:**` or `###` sub-headings to separate sections (findings, actions, evidence). Do not use `#` or `##`; the field already sits under the form's headings.
+- Separate paragraphs with a blank line (`\n\n` in the JSON string); a single `\n` alone does not start a new paragraph.
+- Write citations as Markdown links `[title](https://…)` with the retrieval date, not bare URLs.
+- Use a small Markdown table only when the content is genuinely tabular (for example control, status, evidence).
+
+Keep one-sentence answers as plain sentences; do not wrap them in a list. When `format` is `"plain"`, write plain text with line breaks only, because Markdown syntax would show as literal characters. Show the Markdown as it will be stored in the proposal, so the user confirms the formatting too.
 
 Omit `auto_increment` fields. Omit calculated fields as well: the agent schema does not expose their calculated flag, so use context cues such as totals, scores, ratings, or an explicit user statement. Calculated fields are exempt from required validation and are recomputed by the web editor.
 
