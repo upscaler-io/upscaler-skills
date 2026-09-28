@@ -158,6 +158,7 @@ Then report the flow position: which tasks are drafted awaiting review, which ta
 - **Drafting later tasks blind.** Read the values already stored in earlier tasks first; a record is one narrative, and contradictory tasks read as fabricated evidence.
 - **Rolling a periodic review forward without re-performing it.** Copying the previous instance's answers and asserting "unchanged" without fetching the sources is fabricated evidence. Perform the documented activity (Step 4), or leave the field to the user and say what was not checked.
 - **Filling a `textarea` with one long paragraph.** Textareas render Markdown unless the schema says `format: "plain"` (a missing `format` still means Markdown). Findings, observations, and narratives read best as lists with bold lead-ins and blank-line paragraphs; follow the shared core's "Markdown in `textarea` fields".
+- **Writing bare ids into a table's lookup column.** A `lookup`, `record_link`, or `member` cell inside a `table` takes `{value, label}` objects exactly like a top-level field. Top-level bare ids are resolved for you; table cells are stored verbatim, so `["i_abc"]` renders as raw ids. The column schema has empty `options` and no `source`: find the target register from an existing cell value's parent `rg_*` (or ask), list its entries, and build real `{value, label}` pairs (shared core, "Table values").
 - **Mutating without confirmation, or "sample data" shortcuts.** Same contract as `upscaler-write-entry`: propose, confirm, then write.
 
 ## Examples

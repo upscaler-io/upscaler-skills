@@ -59,7 +59,7 @@ If a reference cannot be resolved (empty target register, no matching member), l
 | multiple `select` | An array of visible option-text strings, even for one selection. Multiple is the platform default, so read `multiple` / `value_format`. |
 | `checkbox` | An array of inline `options[].value` strings (e.g. `["Yes"]`, never the bare string). Do not query dynamic field options for checkbox. |
 | `member` | `{"value": "<member-or-group id>", "label": "<name>"}` (array when `multiple`) — the canonical stored shape for both containers. A bare id string is accepted only because the agent layer resolves it against the field's options, and fails with `VALUE_VALIDATION_ERROR` when it cannot. Ask if the intended person is unclear. |
-| `lookup` | `{"value": "i_*", "label": "<row title>"}`, or an array of these when `multiple`. |
+| `lookup` | `{"value": "i_*", "label": "<row title>"}`, or an array of these when `multiple`. The same shape applies to a `lookup` column inside a `table` (see "Table values"). |
 | `record_link` | `{"value": "r_*", "label": "<record title>"}`, or an array of these when `multiple` — same shape as `lookup`; read `multiple` from the schema. |
 | `frameworkRequirementPicker` | Normally omit. When explicitly requested by an OWNER/ADMIN, write an array of `{"frameworkId": "...", "requirementId": "..."}` using real installed-framework ids. |
 | `file_upload` | Use the owning skill's file workflow (`entry update --file` / `entry upload-file` / presign-and-POST). Never write a hand-built file item without a real uploaded `uid`. On **records**, pass `--task-id`: the CLI reads the task's current values, splices the uploaded file in, and sends the result through `saveTaskDraft`, so the attachment lands in the draft like any other value. |
@@ -68,7 +68,7 @@ If a reference cannot be resolved (empty target register, no matching member), l
 
 The web app renders a Markdown `textarea` as formatted text, so one long run-on paragraph reads as a wall of text. Structure anything longer than two sentences:
 
-- Break distinct points into a bullet list (`- `) or, for ordered steps, a numbered list (`1. `).
+- Break distinct points into a bullet list (`-`) or, for ordered steps, a numbered list (`1.`).
 - Use short `**Bold lead-ins:**` or `###` sub-headings to separate sections (findings, actions, evidence). Do not use `#` or `##`; the field already sits under the form's headings.
 - Separate paragraphs with a blank line (`\n\n` in the JSON string); a single `\n` alone does not start a new paragraph.
 - Write citations as Markdown links `[title](https://…)` with the retrieval date, not bare URLs.
@@ -84,6 +84,14 @@ Writes must never carry the `upscaler:` URI prefix; that is this library's citat
 
 A table value is the complete list of rows to retain; replacing the value does not merge individual rows. Each row is keyed by the bare column id (`ff_col`), even though the schema reports the dotted `ff_table.ff_col`. A dotted inner key persists but renders empty.
 
+**Reference columns inside a table take the same object shape as a top-level field.** A `lookup` cell is `{"value": "i_*", "label": "<row title>"}` (an array of these when the column is `multiple`), a `record_link` cell uses `r_*` the same way, and a `member` cell is `{"value": "<member id>", "label": "<name>"}`. Never write bare ids such as `["i_abc", "i_def"]` into a cell. Top-level lookup fields get their bare ids resolved to objects by the agent layer, but table cells do not: a bare id array is stored verbatim and the web app shows the raw `i_*` strings instead of item names.
+
+A `lookup` column's schema carries `options: []` and no `source`, so the column does not tell you which register it points at. Find the target register before proposing values:
+
+1. Take an `i_*` already stored in that column on this instance or a sibling row, read it (MCP `upscaler_get_asset({asset_id: "<i_*>"})`; CLI `upscaler --json get <i_*>`), and use its parent `rg_*`.
+2. With no existing value to follow, ask the user which register the column draws from.
+3. List that register's entries (the `lookup` recipe under "Deriving values from context") and build each `{value, label}` from a real row's id and title. If the register cannot be identified, leave the cell empty and say so in the proposal.
+
 Do not invent a row `key`. The server creates one for a new row. When replacing existing rows, preserve each existing server-managed `key` to retain row identity. Because schema `minRows` / `maxRows` are not exposed, keep generated tables to one or two rows unless the user asks for more.
 
 ## Proposal and read-back
@@ -95,7 +103,7 @@ During verification:
 - **Register entries: verify with a values-bearing list, not a per-item `get`.** MCP `upscaler_list({type:"entries", definition_id:"<rg_*>", include_values:true})` or CLI `upscaler --json list entries --definition-id <rg_*> --include-values`, then match the new `i_*`. A per-item `get` right after a create returns `values: null` (the projection lags the event-sourced write) and falsely reads as "nothing landed".
 - **Record task drafts: verify with the plain record read, `upscaler --json get <r_*>`.** A draft save writes the values onto the task itself, so match the `t_*` under `tasks[]`, confirm its `status` is `DRAFT`, and diff its `values` against the payload you sent. Those values are **flat for that task** (`tasks[].values.<key>`), not nested under the task-definition id. `--lane designer` (and `--draft`, its deprecated spelling) is **not** the draft read: it selects the designer working copy of a *definition*, never a task's staged values. The values-bearing list keeps reporting the record's **committed** values (usually empty, or the pre-draft state) until a human completes the task, and `get <r_*> --format schema` returns `current_value: null` for every field; reading either as the verification and finding nothing is the expected result of a *successful* draft save, not a failed write. Do not pass `--resolve-labels` when the definition is an `rd_*`.
 - **Register pending revisions have no agent-readable surface.** An update to a COMPLETED entry stashes the proposal where only the Upscaler app can read it (an editor-gated `itemDraft` query that neither MCP nor the CLI exposes), and the mutation response echoes the entry's unchanged **live** values. An error-free call is the whole receipt: report that the revision awaits review and stop, rather than hunting for a read that confirms it.
-- Compare table cell keys with a known-good row and expect bare column ids.
+- Compare table cell keys with a known-good row and expect bare column ids. Check that every `lookup`, `record_link`, and `member` cell reads back as `{value, label}` objects, not bare id strings.
 - The nested `values.<taskDefinitionId>.<key>` shape appears **only** in the values-bearing list, and only for tasks a human has completed; `get <r_*>` never returns a record-level values object. Flatten the nested shape before diffing against your payload.
 - Treat an absent key as unanswered, not as an empty stored value.
 - Historical rows may contain `{value, label}` wrappers or legacy `DD/MM/YYYY` dates; normalize these only for comparison.
