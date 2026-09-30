@@ -80,7 +80,7 @@ Every **definition-backed** asset exists twice under one id: the **designer** wo
 
 `--lane` is a *definition* selector. It never reads a HITL task or item draft: those are staged values on an instance, read through the plain record or entry JSON (see the mapping row above).
 
-**Version note.** The `--lane` flag and comma-separated `--format` need a CLI newer than 0.4.0. On an older build they fail loudly as a Click usage error (exit 2, "no such option"), never silently, so the fallback is to upgrade the CLI rather than to work around the flag. The published-by-default read is a platform behaviour and applies on both tiers regardless of CLI version.
+**Version note.** The `--lane` flag and comma-separated `--format` need CLI 0.5.0 or later. On an older build they fail loudly as a Click usage error (exit 2, "no such option"), never silently, so the fallback is to upgrade the CLI rather than to work around the flag. The published-by-default read is a platform behaviour and applies on both tiers regardless of CLI version.
 
 ## Asset ID prefixes
 

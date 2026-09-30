@@ -1,6 +1,6 @@
 {
   "name": "upscaler-skills",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Core Upscaler agent skills: compliance-manager Q&A, asset-definition authoring, register-entry writes, and record drafting (a human completes each task). Prefers the Upscaler MCP server; falls back to the upscaler CLI.",
   "author": {
     "name": "Upscaler",

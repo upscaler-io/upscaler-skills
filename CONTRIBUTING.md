@@ -94,14 +94,14 @@ The repo ships as a Claude Code plugin (`upscaler-skills` in the `upscaler` mark
 2. Tag the commit and push the tag:
 
    ```bash
-   git tag v1.1.0 && git push --tags
+   git tag v1.2.0 && git push --tags
    ```
 
 3. The workflow verifies the tag matches the manifest version, builds the offline bundle, the ChatGPT per-skill zips, the Cursor rules, and the Gemini context file, then attaches them all to the release.
 
 A tag that disagrees with the manifest fails the build instead of publishing a mislabelled release, so bump first and tag second. Release asset names stay stable across versions, which is what keeps `releases/latest/download/<asset>` working for users, so do not add a version suffix to them.
 
-Pinned plugin install: `/plugin marketplace add upscaler-io/upscaler-skills@v1.1.0`.
+Pinned plugin install: `/plugin marketplace add upscaler-io/upscaler-skills@v1.2.0`.
 
 ## Code of conduct
 

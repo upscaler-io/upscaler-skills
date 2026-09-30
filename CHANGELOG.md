@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-30
+
 ### Added
 
 - README gains UI-only install routes: the Claude app (claude.ai / Claude Desktop) via Customize → Plugins → Add marketplace, and ChatGPT via the prebuilt `chatgpt-*.zip` release assets, so neither path requires a terminal.
@@ -16,6 +18,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- The access reference's version note now names CLI 0.5.0 as the first release carrying `get --lane` and comma-separated `get --format`, replacing "newer than 0.4.0".
 - **The `get` default lane flipped to published for `d_*` and `cd_*`.** A document read used to answer with the designer working copy (with a published fallback); it now answers with the published snapshot unless `--lane designer` is passed. `rg_*` already defaulted to published and is unchanged. Every reading skill inherits this, and it is why the document read-modify-write procedure had to be rewritten rather than annotated.
 - `get <to_*>` is an asset read on both tiers, so a todo's fields arrive under `data.json.*` (bookmark at `data.json.extra.bookmarkUrl`) instead of bare on `data`, and it honours `--format` and `--lane`. `upscaler-ask`'s bare-ID recipe and the access reference's prefix-routing line say so; the CLI's `--type todo` is recorded as deprecated for one release.
 
