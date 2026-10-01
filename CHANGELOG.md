@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- **Expired sessions that did not arrive as a 401 were retried as validation errors.** For an expired OAuth token on `/api/v1`, `up-ai` answered HTTP 200 with `VALIDATION_ERROR` "Authentication required" and `retryable: true`, so the CLI never auto-refreshed and agents retried a call that could not succeed. `references/upscaler-access.md` now treats `AUTHENTICATION_FAILED`, or a message starting `Authentication required` / `Authentication token required`, as an auth failure on either tier: refresh once and retry once on the CLI, reconnect the connector on MCP, and ask for login if that fails. Companion fixes make `up-ai` return a 401 and the CLI refresh on the envelope.
+
 ## [1.2.0] - 2026-09-30
 
 ### Added
