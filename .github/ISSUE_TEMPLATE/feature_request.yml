@@ -3,11 +3,15 @@ description: Suggest an improvement to an existing skill.
 title: "[feature] "
 labels: ["enhancement"]
 body:
-  - type: input
+  - type: dropdown
     id: skill
     attributes:
       label: Skill
-      placeholder: upscaler-asset-definition
+      options:
+        - upscaler-ask
+        - upscaler-author-asset
+        - upscaler-write-entry
+        - upscaler-run-record
     validations:
       required: true
   - type: textarea

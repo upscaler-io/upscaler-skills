@@ -3,12 +3,47 @@ description: Report a problem with an existing skill.
 title: "[bug] "
 labels: ["bug"]
 body:
-  - type: input
+  - type: markdown
+    attributes:
+      value: |
+        Do not report a security problem here. See [SECURITY.md](https://github.com/upscaler-io/upscaler-skills/blob/main/SECURITY.md).
+  - type: dropdown
     id: skill
     attributes:
       label: Skill
       description: Which skill is affected?
-      placeholder: upscaler-asset-definition
+      options:
+        - upscaler-ask
+        - upscaler-author-asset
+        - upscaler-write-entry
+        - upscaler-run-record
+        - Other or not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Agent client
+      options:
+        - Claude Code
+        - Claude app (claude.ai or Claude Desktop)
+        - Codex
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version or commit
+      description: The `version` in `.codex-plugin/plugin.json`, or the commit SHA you installed.
+      placeholder: 1.2.0 or 7faff9c
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Include the prompt you gave the agent. Remove tokens and customer data.
     validations:
       required: true
   - type: textarea
@@ -21,24 +56,5 @@ body:
     id: actual
     attributes:
       label: Actual behavior
-      description: What went wrong? Include the user prompt you gave Claude.
     validations:
       required: true
-  - type: textarea
-    id: repro
-    attributes:
-      label: Steps to reproduce
-    validations:
-      required: true
-  - type: input
-    id: claude-version
-    attributes:
-      label: Claude Code version
-      description: Output of `claude --version`.
-    validations:
-      required: false
-  - type: input
-    id: os
-    attributes:
-      label: OS
-      placeholder: macOS 14.5 / Ubuntu 22.04 / Windows 11
