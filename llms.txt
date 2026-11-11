@@ -20,7 +20,8 @@
 - Claude Code plugin: `/plugin marketplace add upscaler-io/upscaler-skills` then `/plugin install upscaler-skills@upscaler`. Skills appear under the `/upscaler-skills:` namespace and auto-update with each commit on `main`.
 - OpenAI Codex CLI plugin: `codex plugin marketplace add upscaler-io/upscaler-skills` then `codex plugin install upscaler-skills`.
 - Any agent (Vercel skills.sh): `npx skills add upscaler-io/upscaler-skills` installs the whole bundle. Use `--skill upscaler-ask`, `--skill upscaler-author-asset`, `--skill upscaler-write-entry`, or `--skill upscaler-run-record` to install just one. Works with Claude Code, Cursor, Codex, Gemini CLI, Cline, OpenCode, and 12+ other agents.
-- ChatGPT (Business/Enterprise/Healthcare/Edu): run `python3 scripts/build_chatgpt_skills.py` to produce self-contained per-skill zips in `dist/chatgpt/` (shared references inlined under `references/shared/`), then upload each zip via Settings → Skills → "Upload from your computer". Connect the Upscaler connector for live data; uploads do not auto-update.
+- ChatGPT plugin marketplace (workspace admin): Admin → Plugins → Add → Import marketplace, Source `https://github.com/upscaler-io/upscaler-skills`, Path empty. Members then install `upscaler-skills`; the marketplace syncs daily.
+- ChatGPT zip upload (fallback without admin access): run `python3 scripts/build_chatgpt_skills.py` to produce self-contained per-skill zips in `dist/chatgpt/` (shared references inlined under `references/shared/`), then upload each zip via Settings → Skills → "Upload from your computer". Connect the Upscaler connector for live data; uploads do not auto-update.
 - Manual: `cp -r skills/<name> ~/.claude/skills/` (or paste `SKILL.md` into the agent's rules file). See [README installation guide](https://github.com/upscaler-io/upscaler-skills/blob/main/README.md#installation).
 
 ## APIs

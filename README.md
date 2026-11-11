@@ -8,11 +8,11 @@ Each skill is written as platform-neutral markdown (instructions + optional scri
 
 | Agent | Where skills are loaded from |
 | --- | --- |
-| [Claude Code](https://claude.ai/code) / [Claude.ai](https://claude.ai) | `~/.claude/skills/` or `.claude/skills/` |
+| [Claude Code](https://claude.ai/code) / [Claude.ai](https://claude.ai) | Plugin marketplace: add `https://github.com/upscaler-io/upscaler-skills`, then install `upscaler-skills` |
 | [Cursor](https://cursor.com) | `.cursor/rules/*.mdc`, from the packaged `cursor-rules.zip` |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `GEMINI.md` at the project or user level, from the packaged `gemini-context.zip` |
 | [OpenAI Codex CLI](https://github.com/openai/codex) | `AGENTS.md` at the project or user level, or `.agents/skills/` |
-| [ChatGPT](https://chatgpt.com) (Business, Enterprise, Edu) | Settings → Skills → "Upload from your computer", using the packaged zips from `scripts/build_chatgpt_skills.py` |
+| [ChatGPT](https://chatgpt.com) (workspace plans) | Plugin marketplace: a workspace admin imports `https://github.com/upscaler-io/upscaler-skills`. Fallback: upload the packaged per-skill zips |
 | Any other agent | Paste `SKILL.md` content into whatever system-prompt / rules file the tool supports |
 
 > The canonical source for every skill is its `SKILL.md`. Platform-specific installs below all boil down to "make this skill's content discoverable by your agent."
@@ -45,7 +45,7 @@ The library is organized as a **hub-and-spoke**: `upscaler-ask` is the entry poi
 
 ## Installation
 
-Pick the route that matches your agent. The first three install every skill with one command and keep them updated automatically.
+Pick the route that matches your agent. The marketplace and `npx skills` routes install every skill in one step and keep them updated automatically.
 
 ### Claude Code plugin (recommended)
 
@@ -66,7 +66,7 @@ The same plugin installs from the app UI, no terminal needed:
 
 1. Open the **Customize** menu and go to the **Plugins** tab.
 2. In the **Personal plugins** section, click the **+** button, then **Add marketplace**.
-3. Choose the **GitHub repository** option and point it at `upscaler-io/upscaler-skills`.
+3. Choose the **GitHub repository** option and enter `https://github.com/upscaler-io/upscaler-skills` (the short form `upscaler-io/upscaler-skills` also works).
 4. The `upscaler-skills` plugin appears in the catalog for that marketplace; install it from there.
 
 The bundled Upscaler MCP server ships with the plugin here too: the first time a skill reaches for the platform, the OAuth sign-in opens and you pick the organization to authorize.
@@ -114,9 +114,21 @@ Each Cursor rule is *agent-requested*: Cursor matches its `description` against 
 
 Asset names are stable across releases, so the URLs above always fetch the newest build.
 
+### ChatGPT plugin marketplace (recommended)
+
+ChatGPT imports plugin marketplaces from GitHub, and it reads the same `.claude-plugin/marketplace.json` catalog that Claude uses. A workspace admin imports it once for the whole workspace:
+
+1. In ChatGPT, go to **Admin → Plugins → Add → Import marketplace**.
+2. In **Source**, enter `https://github.com/upscaler-io/upscaler-skills`. Leave **Path** empty (the catalog is at the repo root). To pin a release, enter a tag such as `v1.2.1` in **Branch, tag, or commit**.
+3. Click **Import marketplace** and authorize GitHub.
+4. In **Import results**, open `upscaler-skills` and set its installation policy.
+5. Members install `upscaler-skills` from the workspace Plugins directory.
+
+The marketplace syncs daily. To pull a new release sooner, use **Admin → Plugins → Marketplaces → upscaler → Sync now**. Connect the Upscaler connector (`https://ai.upscaler.app/mcp`) in ChatGPT for live workspace data. The `upscaler` CLI fallback is not available inside ChatGPT.
+
 ### ChatGPT (upload packaged zips)
 
-ChatGPT (Business, Enterprise, Healthcare, and Edu plans) consumes the same Agent Skills format, but installs each skill as a self-contained folder, so the repo-root shared references are bundled into each package.
+Use this route when you cannot import a marketplace, for example without workspace admin access. ChatGPT installs each uploaded skill as a self-contained folder, so the repo-root shared references are bundled into each package.
 
 **No terminal needed** — every release carries prebuilt per-skill zips:
 
