@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-11
+
 ### Added
 
 - **`references/upscaler-access.md` covers raising a todo.** `upscaler_manage_todo` gains `raise` and `clear_raise` (CLI `todo raise` and `todo clear-raise`): a todo is raised as blocked or escalated with a reason and up to 20 group or member targets. A raise is not edited: clear it, then raise again. `block` and `unblock` are deprecated. The todo row also lists `--priority` and `--label` on `todo create` and `todo update`, and `list todos --priority`.
