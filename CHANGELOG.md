@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- **README install steps use the plugin marketplace for Claude and ChatGPT.** ChatGPT now has a recommended route: a workspace admin imports `https://github.com/upscaler-io/upscaler-skills` as a plugin marketplace. Uploading the per-skill zips becomes the fallback. The supported-agents table and the Claude app steps name the marketplace URL.
+
 ## [1.2.1] - 2026-11-11
 
 ### Added
