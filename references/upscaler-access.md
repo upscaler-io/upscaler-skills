@@ -202,10 +202,12 @@ Never fabricate an asset ID. If MCP/CLI returned nothing, say so; never invent.
 When the user asks for links they can click or forward (an auditor pack, an email), render every asset link through the universal resolver route:
 
 ```
-https://app.stg.upscaler.app/asset/<asset_id>
+https://app.upscaler.app/asset/<asset_id>
 ```
 
-One shape for every ID prefix (`d_`, `rg_`, `i_`, `r_`, `rd_`, `to_`, …): the platform resolves the ID to the correct page and view for the signed-in reader. Do not hand-build per-type paths (`/document/<id>`, `/item/<id>`, `/record/<id>`, or any `_definition` designer path), and never derive a link from `server_url` in `upscaler status`; that is the API/MCP endpoint, not the web app. Older workspace content may embed hosts from a retired app split (`designer.`, `core.`, `admin.` subdomains) or hand-built per-type paths; do not copy either into new citations.
+This is the production web app, and it is the default. Use the staging host `https://app.stg.upscaler.app` only when you know that the connection is staging: the CLI `server_url` or the MCP endpoint is `https://ai.stg.upscaler.app`. For a local or other non-production host, keep the `upscaler:<asset_id>` citation and say that no clickable link is available.
+
+One shape for every ID prefix (`d_`, `rg_`, `i_`, `r_`, `rd_`, `to_`, …): the platform resolves the ID to the correct page and view for the signed-in reader. Do not hand-build per-type paths (`/document/<id>`, `/item/<id>`, `/record/<id>`, or any `_definition` designer path), and never use `server_url` from `upscaler status` as the link host; that is the API/MCP endpoint, not the web app. Older workspace content may embed hosts from a retired app split (`designer.`, `core.`, `admin.` subdomains) or hand-built per-type paths; do not copy either into new citations.
 
 **Search results are embedding chunks, not assets.** A hit's top-level `id` is the *chunk* id (it will not resolve via `upscaler get`); cite the **`asset_id`**. Use the promoted top-level `asset_title`; it is populated from raw metadata even when `include_metadata` is false. Request raw metadata only for fields not already promoted. One query returns several chunks of the same asset, so **de-duplicate by `asset_id`** before citing. Hybrid-search `score` is a reciprocal-rank-fusion value (often ~0.01–0.03), not a cosine similarity — treat it as ordinal ranking, never a cutoff threshold.
 
